@@ -17,6 +17,15 @@ from marketmind_engine.api import (
     health,
 )
 
+# marketmind_flask/adapters/engine_adapter.py
+
+from marketmind_engine.api import get_metrics as _engine_get_metrics
+
+def metrics_adapter():
+    """
+    Thin delegation to engine metrics.
+    """
+    return _engine_get_metrics()
 
 def analyze_symbol_adapter(symbol: str, context: dict | None = None):
     return analyze_symbol(symbol=symbol, context=context)
