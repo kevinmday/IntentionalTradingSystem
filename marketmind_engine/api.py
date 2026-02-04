@@ -14,6 +14,9 @@ from marketmind_engine.policy.policy_engine import PolicyEngine
 from marketmind_engine.policy.policy_base import PolicyInput
 from marketmind_engine.policy.policies.conservative import ConservativePolicy
 from marketmind_engine.policy.policies.observation_only import ObservationOnlyPolicy
+from marketmind_engine.policy.formatters.explanation import (
+    format_policy_explanation
+)
 
 
 # =========================
@@ -164,6 +167,8 @@ def decide(signal: dict) -> dict:
 
     policy_result = _POLICY_ENGINE.evaluate(policy_input)
 
+    policy_explanation = format_policy_explanation(policy_result)
+
     return {
         **clock,
         "timestamp": datetime.utcnow().isoformat(),
@@ -177,6 +182,7 @@ def decide(signal: dict) -> dict:
             "triggered_rules": policy_result.triggered_rules,
             "gating_reasons": policy_result.gating_reasons,
             "policy_name": policy_result.policy_name,
+            "explanation": policy_explanation,
         },
 
         "engine": "marketmind_engine",
