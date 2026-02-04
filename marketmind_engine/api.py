@@ -5,7 +5,7 @@ Public, stable interface for the MarketMind engine.
 
 NOTE:
 This is a contract-first implementation.
-Behavior will be wired in incrementally.
+Behavior is wired incrementally.
 """
 
 from datetime import datetime
@@ -13,6 +13,21 @@ from typing import Optional, List
 
 from marketmind_engine.core.clock import ENGINE_CLOCK
 from marketmind_engine.data.registry import get_provider
+
+# Decision + Policy
+from marketmind_engine.decision.results import DecisionResult
+from marketmind_engine.policy.policy_engine import PolicyEngine
+from marketmind_engine.policy.policy_base import PolicyInput
+from marketmind_engine.policy.policies.observation_only import ObservationOnlyPolicy
+
+
+# =========================
+# Policy Engine (static for now)
+# =========================
+
+_POLICY_ENGINE = PolicyEngine(
+    policy=ObservationOnlyPolicy()
+)
 
 
 # =========================
@@ -64,7 +79,6 @@ def analyze_symbol(symbol: str, context: Optional[dict] = None) -> dict:
 
     return {
         **clock,
-
         "symbol": symbol.upper(),
 
         # Observation timestamp (external-facing)
@@ -116,21 +130,51 @@ def analyze_batch(symbols: List[str], context: Optional[dict] = None) -> dict:
 
 
 # =========================
-# Decision
+# Decision + Policy
 # =========================
 
 def decide(signal: dict) -> dict:
     """
-    Convert an analysis signal into a decision.
+    Convert an analysis signal into a decision,
+    then interpret it through the PolicyEngine.
     """
     clock = ENGINE_CLOCK.now()
+
+    # --------------------------------------------------
+    # Stub DecisionResult (rule logic wired later)
+    # --------------------------------------------------
+    decision_result = DecisionResult(
+        rule_results=[],
+        metadata={
+            "note": "decision logic not implemented"
+        }
+    )
+
+    # --------------------------------------------------
+    # Policy evaluation
+    # --------------------------------------------------
+    policy_input = PolicyInput(
+        decision_result=decision_result,
+        market_state=signal,
+        engine_time=ENGINE_CLOCK.now(),
+    )
+
+    policy_result = _POLICY_ENGINE.evaluate(policy_input)
 
     return {
         **clock,
         "timestamp": datetime.utcnow().isoformat(),
-        "decision": "NO_ACTION",
-        "reason": "decision logic not implemented",
-        "input_signal": signal,
+
+        "decision": decision_result.to_dict(),
+
+        "policy": {
+            "action": policy_result.action.value,
+            "confidence": policy_result.confidence,
+            "triggered_rules": policy_result.triggered_rules,
+            "gating_reasons": policy_result.gating_reasons,
+            "policy_name": policy_result.policy_name,
+        },
+
         "engine": "marketmind_engine",
         "mode": "stub",
         "data_source": "engine",
