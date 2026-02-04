@@ -1,24 +1,17 @@
-"""
-marketmind_engine API
----------------------
-Public, stable interface for the MarketMind engine.
-
-NOTE:
-This is a contract-first implementation.
-Behavior is wired incrementally.
-"""
-
 from datetime import datetime
 from typing import Optional, List
 
 from marketmind_engine.core.clock import ENGINE_CLOCK
 from marketmind_engine.data.registry import get_provider
 
+# =========================
 # Decision + Policy
+# =========================
+
 from marketmind_engine.decision.results import DecisionResult
 from marketmind_engine.policy.policy_engine import PolicyEngine
 from marketmind_engine.policy.policy_base import PolicyInput
-from marketmind_engine.policy.policies.observation_only import ObservationOnlyPolicy
+from marketmind_engine.policy.policies.conservative import ConservativePolicy
 
 
 # =========================
@@ -26,8 +19,9 @@ from marketmind_engine.policy.policies.observation_only import ObservationOnlyPo
 # =========================
 
 _POLICY_ENGINE = PolicyEngine(
-    policy=ObservationOnlyPolicy()
+    policy=ConservativePolicy()
 )
+
 
 
 # =========================
