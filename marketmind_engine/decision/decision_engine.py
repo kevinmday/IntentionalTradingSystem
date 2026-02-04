@@ -1,53 +1,65 @@
 """
-Decision Engine Scaffold
+Decision Engine
 
-Evaluates a MarketState against registered rules
-and produces a transparent decision report.
+Evaluates a MarketState against registered decision rules
+and produces a transparent, explainable DecisionResult.
+
+This engine is intentionally deterministic and ML-free.
 """
 
-from typing import Callable, List
+from typing import List
 
 from marketmind_engine.decision.state import MarketState
 from marketmind_engine.decision.types import RuleResult, DecisionResult
-
-
-# A rule is a callable that takes MarketState and returns RuleResult
-Rule = Callable[[MarketState], RuleResult]
+from marketmind_engine.decision.rules.narrative_acceleration import (
+    NarrativeAccelerationRule,
+)
 
 
 class DecisionEngine:
     """
-    Minimal decision engine.
+    Canonical DecisionEngine (Phase 1)
 
-    - Holds a list of rules
-    - Evaluates them against a state
-    - Reports what fired
+    - Executes deterministic decision rules
+    - Aggregates RuleResults
+    - Emits ALLOW_BUY when justified
+    - Leaves risk, sizing, and execution to later layers
     """
 
-    def __init__(self, rules: List[Rule]):
-        self.rules = rules
+    def __init__(self):
+        # Explicit rule registration (no magic)
+        self.rules = [
+            NarrativeAccelerationRule(),
+        ]
 
     def evaluate(self, state: MarketState) -> DecisionResult:
         """
-        Evaluate all rules against the given state.
+        Evaluate all registered rules against the given MarketState.
         """
 
-        triggered = []
-        blocked = []
+        rule_results: List[RuleResult] = []
 
         for rule in self.rules:
-            result = rule(state)
+            result = rule.evaluate(state)
+            if result is not None:
+                rule_results.append(result)
 
-            if result.triggered:
-                triggered.append(result.name)
-            else:
-                blocked.append(result.name)
+        # --------------------------------------------------
+        # Phase 1 decision logic (simple, explicit)
+        # --------------------------------------------------
+        allow_buy = any(
+            r.triggered and r.recommendation == "ALLOW_BUY"
+            for r in rule_results
+        )
 
-        # NOTE: Decision is intentionally dumb for now
-        decision = "UNDECIDED"
+        decision = "ALLOW_BUY" if allow_buy else "NO_ACTION"
 
         return DecisionResult(
             decision=decision,
-            triggered_rules=triggered,
-            blocked_rules=blocked,
+            rule_results=rule_results,
+            metadata={
+                "engine": "DecisionEngine",
+                "rule_count": len(self.rules),
+                "allow_buy": allow_buy,
+            },
         )
