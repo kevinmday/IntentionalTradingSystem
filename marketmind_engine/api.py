@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional, List
+import os
 
 from marketmind_engine.core.clock import ENGINE_CLOCK
 from marketmind_engine.data.registry import get_provider
@@ -12,16 +13,24 @@ from marketmind_engine.decision.results import DecisionResult
 from marketmind_engine.policy.policy_engine import PolicyEngine
 from marketmind_engine.policy.policy_base import PolicyInput
 from marketmind_engine.policy.policies.conservative import ConservativePolicy
+from marketmind_engine.policy.policies.observation_only import ObservationOnlyPolicy
 
 
 # =========================
-# Policy Engine (static for now)
+# Policy Engine (static, selectable)
 # =========================
+
+_POLICY_MAP = {
+    "conservative": ConservativePolicy,
+    "observation": ObservationOnlyPolicy,
+}
+
+_POLICY_NAME = os.getenv("MARKETMIND_POLICY", "conservative").lower()
+_POLICY_CLASS = _POLICY_MAP.get(_POLICY_NAME, ConservativePolicy)
 
 _POLICY_ENGINE = PolicyEngine(
-    policy=ConservativePolicy()
+    policy=_POLICY_CLASS()
 )
-
 
 
 # =========================
@@ -162,6 +171,7 @@ def decide(signal: dict) -> dict:
         "decision": decision_result.to_dict(),
 
         "policy": {
+            "policy_selected": _POLICY_NAME,
             "action": policy_result.action.value,
             "confidence": policy_result.confidence,
             "triggered_rules": policy_result.triggered_rules,
