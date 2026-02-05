@@ -14,7 +14,7 @@ from marketmind_engine.decision.types import RuleResult, DecisionResult
 from marketmind_engine.decision.rules.narrative_acceleration import (
     NarrativeAccelerationRule,
 )
-
+from marketmind_engine.decision.rules.volatility_compression import VolatilityCompressionRule
 
 class DecisionEngine:
     """

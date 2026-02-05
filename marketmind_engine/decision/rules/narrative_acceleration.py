@@ -1,4 +1,5 @@
-from marketmind_engine.decision.rule_result import RuleResult
+from marketmind_engine.decision.types import RuleResult
+from marketmind_engine.decision.state import MarketState
 
 
 class NarrativeAccelerationRule:
@@ -8,19 +9,21 @@ class NarrativeAccelerationRule:
 
     name = "NarrativeAcceleration"
 
-    def evaluate(self, signal: dict) -> RuleResult:
+    def evaluate(self, market_state: MarketState) -> RuleResult:
         """
-        Evaluate narrative acceleration from a structured signal.
+        Evaluate narrative acceleration from normalized MarketState.
 
-        Expected signal fields (non-ML, numeric):
-        - narrative_mentions_current
-        - narrative_mentions_previous
-        - narrative_source_count
+        Expected MarketState.narrative fields (pre-normalized upstream):
+        - mentions_current
+        - mentions_previous
+        - source_count
         """
 
-        current = signal.get("narrative_mentions_current", 0)
-        previous = signal.get("narrative_mentions_previous", 0)
-        sources = signal.get("narrative_source_count", 0)
+        narrative = market_state.narrative
+
+        current = narrative.mentions_current
+        previous = narrative.mentions_previous
+        sources = narrative.source_count
 
         acceleration = current - previous
 
