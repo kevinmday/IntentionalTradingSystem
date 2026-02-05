@@ -17,28 +17,37 @@ class LiquidityParticipationRule:
     Determines whether there is sufficient market participation
     for intent and structure to express meaningfully.
 
-    This rule NEVER allows a buy.
-    It only blocks buys when liquidity is THIN.
+    Phase-1 behavior:
+    - If no liquidity context is present, rule does NOT block.
+    - This rule NEVER allows a buy.
+    - It only blocks buys when liquidity is THIN.
     """
 
-    rule_name = "LiquidityParticipation"
+    name = "LiquidityParticipation"
 
     def evaluate(self, market_state: MarketState) -> RuleResult:
-        """
-        Expected MarketState.liquidity fields (normalized upstream):
-        - state : LiquidityState (THIN | NORMAL | CROWDED)
-        """
+        # --------------------------------------------------
+        # Phase-1 guard: no liquidity context
+        # --------------------------------------------------
+        liquidity = getattr(market_state, "liquidity", None)
 
-        liquidity_state = market_state.liquidity.state
+        if liquidity is None:
+            return RuleResult(
+                name=self.name,
+                triggered=False,
+                notes="No liquidity context provided",
+            )
+
+        liquidity_state = liquidity.state
 
         blocked = liquidity_state == LiquidityState.THIN
 
         return RuleResult(
-            rule_name=self.rule_name,
+            name=self.name,
             triggered=blocked,
-            confidence=1.0 if blocked else 0.0,
-            details={
-                "liquidity_state": liquidity_state.value,
-                "block_reason": "thin_liquidity" if blocked else None,
-            },
+            notes=(
+                f"liquidity_state={liquidity_state.value}"
+                if blocked
+                else f"liquidity_state={liquidity_state.value} (not blocking)"
+            ),
         )

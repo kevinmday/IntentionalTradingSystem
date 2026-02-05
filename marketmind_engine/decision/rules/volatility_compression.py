@@ -17,23 +17,37 @@ class VolatilityCompressionRule:
     Determines whether market structure (volatility)
     permits price movement in response to intent.
 
-    This rule NEVER allows a buy.
-    It only blocks buys when volatility is expanded.
+    Phase-1 behavior:
+    - If no volatility context is present, rule does NOT block.
+    - This rule NEVER allows a buy.
+    - It only blocks buys when volatility is expanded.
     """
 
-    rule_id = "VolatilityCompressionRule"
+    name = "VolatilityCompression"
 
     def evaluate(self, market_state: MarketState) -> RuleResult:
-        volatility_state = market_state.volatility.state
+        # --------------------------------------------------
+        # Phase-1 guard: no volatility context
+        # --------------------------------------------------
+        volatility = getattr(market_state, "volatility", None)
+
+        if volatility is None:
+            return RuleResult(
+                name=self.name,
+                triggered=False,
+                notes="No volatility context provided",
+            )
+
+        volatility_state = volatility.state
 
         blocked = volatility_state == VolatilityState.EXPANDED
 
         return RuleResult(
-            rule_name=self.rule_id,
+            name=self.name,
             triggered=blocked,
-            confidence=1.0 if blocked else 0.0,
-            details={
-                "volatility_state": volatility_state.value,
-                "block_reason": "expanded" if blocked else None,
-            },
+            notes=(
+                f"volatility_state={volatility_state.value}"
+                if blocked
+                else f"volatility_state={volatility_state.value} (not blocking)"
+            ),
         )

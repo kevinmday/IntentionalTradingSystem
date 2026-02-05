@@ -20,6 +20,9 @@ class MarketState:
     fils: float
     ttcf: float
 
+    # --- Narrative context (optional, Phase-1 safe) ---
+    narrative: Optional[str] = None
+
     # --- Optional derived structures ---
     fractal_levels: Optional[List[float]] = None
 

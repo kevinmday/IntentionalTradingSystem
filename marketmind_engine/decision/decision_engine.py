@@ -58,29 +58,24 @@ class DecisionEngine:
         # --------------------------------------------------
 
         intent_triggered = any(
-            r.rule_name == "NarrativeAcceleration" and r.triggered
+            r.name == "NarrativeAcceleration" and r.triggered
             for r in rule_results
         )
 
-        blocked = any(
-            r.rule_name in (
-                "VolatilityCompression",
-                "LiquidityParticipation",
-            ) and r.triggered
+        blocked_rules = [
+            r.name
             for r in rule_results
+            if r.triggered and r.name != "NarrativeAcceleration"
+        ]
+
+        decision = (
+            "ALLOW_BUY"
+            if intent_triggered and not blocked_rules
+            else "NO_ACTION"
         )
-
-        allow_buy = intent_triggered and not blocked
-
-        decision = "ALLOW_BUY" if allow_buy else "NO_ACTION"
 
         return DecisionResult(
             decision=decision,
-            rule_results=rule_results,
-            metadata={
-                "engine": "DecisionEngine",
-                "rule_count": len(self.rules),
-                "intent_triggered": intent_triggered,
-                "blocked": blocked,
-            },
+            triggered_rules=[r.name for r in rule_results if r.triggered],
+            blocked_rules=blocked_rules,
         )

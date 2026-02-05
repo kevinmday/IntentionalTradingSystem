@@ -17,9 +17,22 @@ class NarrativeAccelerationRule:
         - mentions_current
         - mentions_previous
         - source_count
+
+        Phase-1 behavior:
+        - If narrative is None, rule evaluates cleanly and does NOT trigger.
         """
 
         narrative = market_state.narrative
+
+        # ---------------------------------------------
+        # Phase-1 guard: no narrative means no trigger
+        # ---------------------------------------------
+        if narrative is None:
+            return RuleResult(
+                name=self.name,
+                triggered=False,
+                notes="No narrative context provided",
+            )
 
         current = narrative.mentions_current
         previous = narrative.mentions_previous
@@ -33,16 +46,12 @@ class NarrativeAccelerationRule:
             and sources >= 2
         )
 
-        confidence = 0.4 if triggered else 0.0
-
         return RuleResult(
-            rule_name=self.name,
+            name=self.name,
             triggered=triggered,
-            confidence=confidence,
-            details={
-                "mentions_current": current,
-                "mentions_previous": previous,
-                "acceleration": acceleration,
-                "source_count": sources,
-            },
+            notes=(
+                f"acceleration={acceleration}, "
+                f"current={current}, "
+                f"sources={sources}"
+            ),
         )
