@@ -1,12 +1,12 @@
-from marketmind_engine.data.stub import StubDataSource
+from marketmind_engine.data.stub import StubDataProvider
 
-_ACTIVE_SOURCE = StubDataSource()
-
-
-def get_data_source():
-    return _ACTIVE_SOURCE
+_ACTIVE_PROVIDER = StubDataProvider()
 
 
-def set_data_source(source):
-    global _ACTIVE_SOURCE
-    _ACTIVE_SOURCE = source
+def get_provider():
+    return _ACTIVE_PROVIDER
+
+
+def set_provider(provider):
+    global _ACTIVE_PROVIDER
+    _ACTIVE_PROVIDER = provider

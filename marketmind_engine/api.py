@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 import os
+from dataclasses import asdict
 
 from marketmind_engine.core.clock import ENGINE_CLOCK
 from marketmind_engine.data.registry import get_provider
@@ -9,7 +10,7 @@ from marketmind_engine.data.registry import get_provider
 # Decision + Policy
 # =========================
 
-from marketmind_engine.decision.results import DecisionResult
+from marketmind_engine.decision.types import DecisionResult
 from marketmind_engine.policy.policy_engine import PolicyEngine
 from marketmind_engine.policy.policy_base import PolicyInput
 from marketmind_engine.policy.policies.conservative import ConservativePolicy
@@ -17,6 +18,12 @@ from marketmind_engine.policy.policies.observation_only import ObservationOnlyPo
 from marketmind_engine.policy.formatters.explanation import (
     format_policy_explanation
 )
+
+# =========================
+# Phase-6A Candidates
+# =========================
+
+from marketmind_engine.candidates.emitter import emit_candidates
 
 
 # =========================
@@ -133,6 +140,38 @@ def analyze_batch(symbols: List[str], context: Optional[dict] = None) -> dict:
         "mode": "stub",
         "data_source": provider.name,
     }
+
+
+# =========================
+# Phase-6A — Read-Only Candidates
+# =========================
+
+def get_candidates() -> list[dict]:
+    """
+    Read-only access to Phase-6A trade candidates.
+
+    This function exposes engine-truth candidates without
+    computing, filtering, ranking, sizing, or executing.
+    """
+    clock = ENGINE_CLOCK.now()
+
+    # NOTE:
+    # This assumes evaluated assets already exist in engine state.
+    # This function MUST remain read-only.
+    evaluated_assets = getattr(get_provider(), "get_evaluated_assets", lambda: [])()
+
+    engine_context = {
+        "engine_id": clock["engine_id"],
+        "engine_time": clock["engine_time"],
+        "engine_tick": clock["engine_tick"],
+    }
+
+    candidates = emit_candidates(
+        engine_context=engine_context,
+        evaluated_assets=evaluated_assets,
+    )
+
+    return [asdict(c) for c in candidates]
 
 
 # =========================

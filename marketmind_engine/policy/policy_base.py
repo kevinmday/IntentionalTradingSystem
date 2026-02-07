@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 
-from marketmind_engine.decision.results import DecisionResult
-from marketmind_engine.market_state import MarketState
+from marketmind_engine.decision.types import DecisionResult
+from marketmind_engine.decision.state import MarketState
 
 
 @dataclass(frozen=True)
