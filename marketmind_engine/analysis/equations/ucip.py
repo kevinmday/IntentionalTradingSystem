@@ -16,6 +16,11 @@ def compute_ucip(
     scale: Number,
     ff_factor: Number = 1.0,
 ) -> float:
+   def compute_ucip(
+    intention: Number,
+    scale: Number,
+    ff_factor: Number = 1.0,
+) -> float:
     """
     Compute UCIP (Unified Cosmic Intention Postulate).
 
@@ -35,5 +40,4 @@ def compute_ucip(
     float
         Raw UCIP value (unrounded)
     """
-
     return float(intention) + float(scale) + float(ff_factor)

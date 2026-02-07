@@ -1,57 +1,56 @@
+"""
+Narrative Acceleration Rule
+
+Phase-5 safe:
+- Narrative is not yet structured
+- Domain name or None must NOT trigger
+"""
+
 from marketmind_engine.decision.types import RuleResult
 from marketmind_engine.decision.state import MarketState
 
 
 class NarrativeAccelerationRule:
-    """
-    Detects accelerating narrative attention across independent sources.
-    """
-
     name = "NarrativeAcceleration"
 
-    def evaluate(self, market_state: MarketState) -> RuleResult:
+    def evaluate(self, state: MarketState) -> RuleResult | None:
         """
-        Evaluate narrative acceleration from normalized MarketState.
+        Evaluate narrative acceleration.
 
-        Expected MarketState.narrative fields (pre-normalized upstream):
-        - mentions_current
-        - mentions_previous
-        - source_count
+        In Phase-5, narrative is expected to be:
+        - None
+        - str (domain label)
 
-        Phase-1 behavior:
-        - If narrative is None, rule evaluates cleanly and does NOT trigger.
+        Structured narrative comes later.
         """
 
-        narrative = market_state.narrative
+        narrative = state.narrative
 
-        # ---------------------------------------------
-        # Phase-1 guard: no narrative means no trigger
-        # ---------------------------------------------
-        if narrative is None:
+        # ----------------------------------------------
+        # Phase-5 guard: no structured narrative yet
+        # ----------------------------------------------
+        if narrative is None or isinstance(narrative, str):
             return RuleResult(
                 name=self.name,
                 triggered=False,
-                notes="No narrative context provided",
             )
 
-        current = narrative.mentions_current
-        previous = narrative.mentions_previous
-        sources = narrative.source_count
-
-        acceleration = current - previous
-
-        triggered = (
-            acceleration > 0
-            and current >= 3
-            and sources >= 2
-        )
+        # ----------------------------------------------
+        # Future-proof path (won't execute yet)
+        # ----------------------------------------------
+        try:
+            if (
+                narrative.acceleration_score > 0.5
+                and narrative.mentions_future > narrative.mentions_current
+            ):
+                return RuleResult(
+                    name=self.name,
+                    triggered=True,
+                )
+        except AttributeError:
+            pass
 
         return RuleResult(
             name=self.name,
-            triggered=triggered,
-            notes=(
-                f"acceleration={acceleration}, "
-                f"current={current}, "
-                f"sources={sources}"
-            ),
+            triggered=False,
         )

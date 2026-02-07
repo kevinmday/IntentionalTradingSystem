@@ -1,33 +1,45 @@
 """
-Decision State Object
+MarketState
 
-Defines the canonical snapshot structure consumed by
-decision rules and policies within MarketMind.
+Canonical immutable state object observed by the DecisionEngine.
+
+MarketState represents *what the engine knows*, not what it does.
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional, List
 
 
 @dataclass(frozen=True)
 class MarketState:
-    """
-    Immutable snapshot of analyzed market intention state.
-    """
+    # --------------------------------------------------
+    # Core identity
+    # --------------------------------------------------
+    symbol: Optional[str]
+    narrative: Optional[str]
 
-    # --- Core intention metrics ---
-    ucip: float
-    fils: float
-    ttcf: float
+    # --------------------------------------------------
+    # Intention fields
+    # --------------------------------------------------
+    fils: Optional[float]
+    ucip: Optional[float]
+    ttcf: Optional[float]
 
-    # --- Narrative context (optional, Phase-1 safe) ---
-    narrative: Optional[str] = None
+    # --------------------------------------------------
+    # Structural / fractal context
+    # --------------------------------------------------
+    fractal_levels: Optional[List[float]]
 
-    # --- Optional derived structures ---
-    fractal_levels: Optional[List[float]] = None
+    # --------------------------------------------------
+    # Engine metadata
+    # --------------------------------------------------
+    data_source: Optional[str]
+    engine_id: Optional[str]
+    timestamp_utc: Optional[str]
 
-    # --- Contextual metadata ---
-    symbol: Optional[str] = None
-    data_source: Optional[str] = None
-    engine_id: Optional[str] = None
-    timestamp_utc: Optional[str] = None
+    # --------------------------------------------------
+    # Phase-5C: Market capacity (permission only)
+    # --------------------------------------------------
+    liquidity: Optional[float] = None
+    volatility: Optional[float] = None
+    responsiveness: Optional[float] = None

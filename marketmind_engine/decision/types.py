@@ -3,7 +3,7 @@ Decision engine types.
 """
 
 from dataclasses import dataclass
-from typing import List
+from typing import List, Dict, Any
 
 
 @dataclass(frozen=True)
@@ -20,7 +20,13 @@ class RuleResult:
 class DecisionResult:
     """
     Aggregate decision output from the engine.
+
+    metadata is observational context only:
+    - eligibility
+    - market confirmation
+    - future audit signals
     """
     decision: str
     triggered_rules: List[str]
     blocked_rules: List[str]
+    metadata: Dict[str, Any]

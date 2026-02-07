@@ -1,53 +1,51 @@
-from enum import Enum
+"""
+Volatility Compression Rule
+
+Phase-5 safe:
+- Volatility is a float
+- Structured volatility state arrives in Phase-6
+"""
 
 from marketmind_engine.decision.types import RuleResult
 from marketmind_engine.decision.state import MarketState
 
 
-class VolatilityState(Enum):
-    COMPRESSED = "compressed"
-    NEUTRAL = "neutral"
-    EXPANDED = "expanded"
-
-
 class VolatilityCompressionRule:
-    """
-    Decision Rule 2
-
-    Determines whether market structure (volatility)
-    permits price movement in response to intent.
-
-    Phase-1 behavior:
-    - If no volatility context is present, rule does NOT block.
-    - This rule NEVER allows a buy.
-    - It only blocks buys when volatility is expanded.
-    """
-
     name = "VolatilityCompression"
 
-    def evaluate(self, market_state: MarketState) -> RuleResult:
-        # --------------------------------------------------
-        # Phase-1 guard: no volatility context
-        # --------------------------------------------------
-        volatility = getattr(market_state, "volatility", None)
+    def evaluate(self, state: MarketState) -> RuleResult | None:
+        """
+        Evaluate volatility compression.
 
-        if volatility is None:
+        Phase-5 behavior:
+        - Accept float volatility
+        - Never trigger (structure not present yet)
+        """
+
+        volatility = state.volatility
+
+        # ----------------------------------------------
+        # Phase-5 guard: primitive volatility
+        # ----------------------------------------------
+        if volatility is None or isinstance(volatility, (int, float)):
             return RuleResult(
                 name=self.name,
                 triggered=False,
-                notes="No volatility context provided",
             )
 
-        volatility_state = volatility.state
-
-        blocked = volatility_state == VolatilityState.EXPANDED
+        # ----------------------------------------------
+        # Future structured volatility path
+        # ----------------------------------------------
+        try:
+            if volatility.state == "COMPRESSED":
+                return RuleResult(
+                    name=self.name,
+                    triggered=True,
+                )
+        except AttributeError:
+            pass
 
         return RuleResult(
             name=self.name,
-            triggered=blocked,
-            notes=(
-                f"volatility_state={volatility_state.value}"
-                if blocked
-                else f"volatility_state={volatility_state.value} (not blocking)"
-            ),
+            triggered=False,
         )
