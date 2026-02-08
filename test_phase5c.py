@@ -49,11 +49,15 @@ for s in states:
     states_with_capacity.append(
         MarketState(
             symbol=s.symbol,
+            domain=domain.name,            # 🔑 REQUIRED FOR PHASE-6+
+            narrative=s.narrative,
+
             fils=s.fils,
             ucip=s.ucip,
             ttcf=s.ttcf,
-            narrative=s.narrative,
+
             fractal_levels=s.fractal_levels,
+
             data_source=s.data_source,
             engine_id=s.engine_id,
             timestamp_utc=s.timestamp_utc,

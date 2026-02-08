@@ -16,6 +16,7 @@ class MarketState:
     # Core identity
     # --------------------------------------------------
     symbol: Optional[str]
+    domain: Optional[str]          # ← ADD THIS
     narrative: Optional[str]
 
     # --------------------------------------------------

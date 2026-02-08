@@ -40,12 +40,20 @@ def project_ripples_to_marketstate(
 
         states.append(
             MarketState(
+                # Core identity
                 symbol=ripple.symbol,
+                domain=domain.name,          # ← FIX
+                narrative=None,
+
+                # Intention fields
                 fils=asset_fils,
                 ucip=asset_ucip,
                 ttcf=asset_ttcf,
-                narrative=domain.name,
+
+                # Structural / fractal context
                 fractal_levels=None,
+
+                # Engine metadata
                 data_source="domain_ripple",
                 engine_id=None,
                 timestamp_utc=None,
