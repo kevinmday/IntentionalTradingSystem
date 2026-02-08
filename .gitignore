@@ -1,26 +1,13 @@
-# Python artifacts
+﻿# Python virtual environments
+env/
+venv/
+.venv/
+
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
-*.pyd
-
-# Virtual environments
-venv/
-.env/
 
 # OS junk
 .DS_Store
 Thumbs.db
-
-# ---- Project-specific ignores ----
-
-# Backups (never commit snapshots)
-integration/backups/
-
-# Experimental / scratch work
-RippleIt/
-
-# Editor / IDE noise (optional but recommended)
-.vscode/
-.idea/
-
