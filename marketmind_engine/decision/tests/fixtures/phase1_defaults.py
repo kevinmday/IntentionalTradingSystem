@@ -6,6 +6,9 @@ that should PASS the Phase-1 decision kernel.
 """
 
 PHASE1_DEFAULTS = {
+    # --- Structural (REQUIRED) ---
+    "domain": "TEST",  # Phase-6 structural default
+
     # --- Core intention metrics ---
     "ucip": 0.75,
     "fils": 0.80,

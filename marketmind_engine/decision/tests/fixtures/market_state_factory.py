@@ -18,10 +18,11 @@ def make_market_state(**overrides) -> MarketState:
     data.update(overrides)
 
     return MarketState(
+        domain=data["domain"],                 # ✅ REQUIRED
         ucip=data["ucip"],
         fils=data["fils"],
         ttcf=data["ttcf"],
-        narrative=data.get("narrative"),        # ← REQUIRED FIX
+        narrative=data.get("narrative"),
         fractal_levels=data.get("fractal_levels"),
         symbol=data.get("symbol"),
         data_source=data.get("data_source"),

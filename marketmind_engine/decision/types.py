@@ -1,19 +1,11 @@
 """
-Decision engine types.
+Decision engine types (Phase-6E).
 """
 
 from dataclasses import dataclass
-from typing import List, Dict, Any
+from typing import List
 
-
-@dataclass(frozen=True)
-class RuleResult:
-    """
-    Result returned by a decision rule.
-    """
-    name: str
-    triggered: bool
-    notes: str | None = None
+from marketmind_engine.decision.rules.base import RuleResult
 
 
 @dataclass(frozen=True)
@@ -21,12 +13,10 @@ class DecisionResult:
     """
     Aggregate decision output from the engine.
 
-    metadata is observational context only:
-    - eligibility
-    - market confirmation
-    - future audit signals
+    Phase-6E:
+    - decision is a simple string (ALLOW_BUY / NO_ACTION)
+    - rule_results contains the full, explainable rule trace
     """
+
     decision: str
-    triggered_rules: List[str]
-    blocked_rules: List[str]
-    metadata: Dict[str, Any]
+    rule_results: List[RuleResult]
