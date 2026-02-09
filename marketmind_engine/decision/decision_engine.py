@@ -14,15 +14,18 @@ from marketmind_engine.decision.rules.registry import RuleRegistry
 from marketmind_engine.decision.rules.intent.narrative_acceleration import (
     NarrativeAccelerationRule,
 )
+from marketmind_engine.decision.rules.bell_drake_threshold import (
+    BellDrakeThreshold,
+)
 
 
 class DecisionEngine:
     """
-    Canonical DecisionEngine (Phase-6E)
+    Canonical DecisionEngine (Phase-8B)
 
     - Executes deterministic rules via RuleRegistry
     - Aggregates RuleResults
-    - Emits ALLOW_BUY only when intent rules trigger
+    - Emits ALLOW_BUY ONLY when Bell-Drake triggers
     - No eligibility, capacity, or capital logic
     """
 
@@ -30,6 +33,7 @@ class DecisionEngine:
         self.rule_registry = RuleRegistry(
             rules=[
                 NarrativeAccelerationRule(),
+                BellDrakeThreshold(),
             ]
         )
 
@@ -40,13 +44,15 @@ class DecisionEngine:
 
         rule_results = self.rule_registry.evaluate(state)
 
-        # --------------------------------------------------
-        # Phase-6E decision logic (intent-only stub)
-        # --------------------------------------------------
-
         decision = "NO_ACTION"
-        if any(r.triggered for r in rule_results):
-            decision = "ALLOW_BUY"
+
+        # --------------------------------------------------
+        # Phase-8B: Bell-Drake is intent authority
+        # --------------------------------------------------
+        for r in rule_results:
+            if r.rule_name == "BellDrakeThreshold" and r.triggered:
+                decision = "ALLOW_BUY"
+                break
 
         return DecisionResult(
             decision=decision,

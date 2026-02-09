@@ -11,6 +11,7 @@ from marketmind_engine.decision.rules.base import (
 class RuleRegistry:
     """
     Deterministic rule orchestration layer.
+    Owns ordering and evaluation only.
     """
 
     _CATEGORY_ORDER = [
