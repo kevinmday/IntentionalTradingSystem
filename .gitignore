@@ -1,19 +1,72 @@
+# =========================
 # Python virtual environments
+# =========================
 env/
 venv/
 .venv/
 
-# Python cache
+# =========================
+# Python cache / bytecode
+# =========================
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 
+# =========================
+# Pytest / test tooling
+# =========================
+.pytest_cache/
+.coverage
+htmlcov/
+
+# =========================
 # OS junk
+# =========================
 .DS_Store
 Thumbs.db
+desktop.ini
 
+# =========================
 # Windows shortcuts
+# =========================
 *.lnk
 
-# Local archives
+# =========================
+# Archives / backups
+# =========================
+*.zip
+*.tar
+*.tar.gz
+*.7z
+
+# =========================
+# Local databases / artifacts
+# =========================
+*.sqlite
+*.db
+*.log
+
+# =========================
+# IDE / editor noise (safe)
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# Jupyter
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# Project-specific archives
+# =========================
 MarketMindAI_ARCHIVE/
+
+# =========================
+# Temporary scratch dirs
+# =========================
+.tmp/
+.temp/
