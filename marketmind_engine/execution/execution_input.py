@@ -3,6 +3,8 @@ from datetime import datetime
 
 from marketmind_engine.policy.policy_result import PolicyResult
 from marketmind_engine.decision.state import MarketState
+from marketmind_engine.execution.capital_snapshot import CapitalSnapshot
+from marketmind_engine.execution.position_snapshot import PositionSnapshot
 
 
 @dataclass(frozen=True)
@@ -13,4 +15,10 @@ class ExecutionInput:
 
     policy_result: PolicyResult
     market_state: MarketState
+
+    capital_snapshot: CapitalSnapshot
+    position_snapshot: PositionSnapshot
+
+    current_price: float  # REQUIRED for price-based sizing
+
     engine_time: datetime
