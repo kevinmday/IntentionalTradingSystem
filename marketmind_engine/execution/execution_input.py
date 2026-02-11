@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
 
 from marketmind_engine.policy.policy_result import PolicyResult
 from marketmind_engine.decision.state import MarketState
@@ -21,4 +22,6 @@ class ExecutionInput:
 
     current_price: float  # REQUIRED for price-based sizing
 
-    engine_time: datetime
+    engine_time: datetime  # REQUIRED
+
+    stop_price: Optional[float] = None  # OPTIONAL (must come last)
