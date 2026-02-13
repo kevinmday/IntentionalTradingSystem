@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MarketMind Regime Panel</title>
+    <style>
+        body {
+            background: #111;
+            color: #eee;
+            font-family: monospace;
+            padding: 30px;
+        }
+
+        .card {
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            width: 420px;
+        }
+
+        .value {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .normal { color: #4caf50; }
+        .stressed { color: #ff9800; }
+        .systemic { color: #f44336; }
+        .standby { color: #03a9f4; }
+    </style>
+</head>
+<body>
+
+<h2>MarketMind Regime Monitor</h2>
+
+<div class="card">
+    <div>Regime: <span id="regime" class="value"></span></div>
+    <div>Flatten Triggered: <span id="flatten"></span></div>
+    <div>Block New Entries: <span id="block"></span></div>
+    <div>Timestamp: <span id="timestamp"></span></div>
+</div>
+
+<script>
+async function fetchRegime() {
+    const res = await fetch("/regime");
+    const data = await res.json();
+
+    const regimeEl = document.getElementById("regime");
+    regimeEl.textContent = data.regime;
+    regimeEl.className = "value " + data.regime;
+
+    document.getElementById("flatten").textContent = data.flatten_triggered;
+    document.getElementById("block").textContent = data.block_new_entries;
+    document.getElementById("timestamp").textContent = data.timestamp;
+}
+
+setInterval(fetchRegime, 2000);
+fetchRegime();
+</script>
+
+</body>
+</html>
