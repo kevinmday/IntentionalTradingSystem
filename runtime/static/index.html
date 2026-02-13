@@ -1,60 +1,85 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>MarketMind Regime Panel</title>
+    <title>MarketMind Regime Monitor</title>
     <style>
         body {
-            background: #111;
-            color: #eee;
-            font-family: monospace;
-            padding: 30px;
+            font-family: Arial, sans-serif;
+            background-color: #111;
+            color: white;
+            text-align: center;
+            margin-top: 80px;
         }
 
         .card {
-            background: #1e1e1e;
-            padding: 20px;
-            border-radius: 8px;
-            width: 420px;
+            display: inline-block;
+            padding: 40px;
+            border-radius: 12px;
+            min-width: 400px;
         }
 
-        .value {
-            font-size: 20px;
+        .normal {
+            background-color: #1e3a8a;
+        }
+
+        .stressed {
+            background-color: #92400e;
+        }
+
+        .systemic {
+            background-color: #7f1d1d;
+        }
+
+        .standby {
+            background-color: #4b5563;
+        }
+
+        .regime {
+            font-size: 48px;
             font-weight: bold;
+            margin-bottom: 20px;
         }
 
-        .normal { color: #4caf50; }
-        .stressed { color: #ff9800; }
-        .systemic { color: #f44336; }
-        .standby { color: #03a9f4; }
+        .flags {
+            font-size: 18px;
+            opacity: 0.85;
+        }
     </style>
 </head>
 <body>
 
-<h2>MarketMind Regime Monitor</h2>
-
-<div class="card">
-    <div>Regime: <span id="regime" class="value"></span></div>
-    <div>Flatten Triggered: <span id="flatten"></span></div>
-    <div>Block New Entries: <span id="block"></span></div>
-    <div>Timestamp: <span id="timestamp"></span></div>
+<div id="container" class="card normal">
+    <div id="regime" class="regime">Loading...</div>
+    <div class="flags">
+        Flatten Triggered: <span id="flatten">false</span><br>
+        Block New Entries: <span id="block">false</span>
+    </div>
 </div>
 
 <script>
-async function fetchRegime() {
-    const res = await fetch("/regime");
-    const data = await res.json();
+    async function fetchRegime() {
+        try {
+            const response = await fetch("/regime");
+            const data = await response.json();
 
-    const regimeEl = document.getElementById("regime");
-    regimeEl.textContent = data.regime;
-    regimeEl.className = "value " + data.regime;
+            const container = document.getElementById("container");
+            const regimeText = document.getElementById("regime");
+            const flatten = document.getElementById("flatten");
+            const block = document.getElementById("block");
 
-    document.getElementById("flatten").textContent = data.flatten_triggered;
-    document.getElementById("block").textContent = data.block_new_entries;
-    document.getElementById("timestamp").textContent = data.timestamp;
-}
+            regimeText.innerText = data.regime.toUpperCase();
+            flatten.innerText = data.flatten_triggered;
+            block.innerText = data.block_new_entries;
 
-setInterval(fetchRegime, 2000);
-fetchRegime();
+            container.className = "card " + data.regime;
+
+        } catch (err) {
+            console.error("Fetch error:", err);
+        }
+    }
+
+    fetchRegime();
+    setInterval(fetchRegime, 2000);
 </script>
 
 </body>
