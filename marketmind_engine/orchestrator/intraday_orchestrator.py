@@ -7,6 +7,8 @@ from marketmind_engine.regime.systemic_monitor import (
 )
 from marketmind_engine.regime.systemic_mode import SystemicMode
 
+from marketmind_engine.regime.macro_sources.base import MacroInputSource
+
 
 @dataclass
 class OrchestratorState:
@@ -24,15 +26,36 @@ class IntradayOrchestrator:
     - STANDBY hysteresis lock
 
     Phase 11.4:
-    - Adds structured diagnostics transparency
+    - Structured diagnostics transparency
+
+    Phase 11.5:
+    - Pluggable MacroInputSource
+    - Session-isolated macro input provider
+    - Deterministic replay compatibility
     """
 
-    def __init__(self, portfolio=None, execution_engine=None):
+    def __init__(
+        self,
+        macro_source: MacroInputSource,
+        portfolio=None,
+        execution_engine=None,
+    ):
+        """
+        macro_source:
+            Required deterministic macro input provider.
+        """
+
+        self._macro_source = macro_source
+
         self.systemic_monitor = SystemicMonitor()
         self.state = OrchestratorState()
 
         self.portfolio = portfolio
         self.execution_engine = execution_engine
+
+    # ------------------------------------------------------------------
+    # INTERNAL LIVE COLLECTOR (for LiveMacroSource wiring)
+    # ------------------------------------------------------------------
 
     def _collect_macro_inputs(self) -> SystemicInputs:
         """
@@ -48,6 +71,10 @@ class IntradayOrchestrator:
             structural_confirmation=0.0,
         )
 
+    # ------------------------------------------------------------------
+    # SYSTEMIC FLATTEN
+    # ------------------------------------------------------------------
+
     def _flatten_all_positions(self):
         """
         SYSTEMIC override.
@@ -62,6 +89,10 @@ class IntradayOrchestrator:
         for position in open_positions:
             self.execution_engine.close(position)
 
+    # ------------------------------------------------------------------
+    # COMPOSITE SCORE
+    # ------------------------------------------------------------------
+
     def _composite_score(self, inputs: SystemicInputs) -> float:
         return (
             inputs.drawdown_velocity
@@ -72,17 +103,23 @@ class IntradayOrchestrator:
         ) / 5.0
 
     # ------------------------------------------------------------------
-    # PHASE 11.4 — RUN CYCLE WITH DIAGNOSTICS
+    # RUN CYCLE (Authority + Diagnostics)
     # ------------------------------------------------------------------
 
     def run_cycle(self):
 
-        macro_inputs = self._collect_macro_inputs()
+        # --------------------------------------------------
+        # Macro input acquisition via pluggable source
+        # --------------------------------------------------
+
+        macro_inputs = self._macro_source.collect()
+
         risk_directive = self.systemic_monitor.evaluate(macro_inputs)
 
         composite = self._composite_score(macro_inputs)
 
         diagnostics = {
+            "macro_source_type": self._macro_source.source_type,
             "macro_inputs": {
                 "drawdown_velocity": macro_inputs.drawdown_velocity,
                 "liquidity_stress": macro_inputs.liquidity_stress,
@@ -95,6 +132,17 @@ class IntradayOrchestrator:
             "risk_mode": risk_directive.mode.value,
             "flatten_all": risk_directive.flatten_all,
             "block_new_entries": risk_directive.block_new_entries,
+            "injected_macro_inputs": (
+                {
+                    "drawdown_velocity": macro_inputs.drawdown_velocity,
+                    "liquidity_stress": macro_inputs.liquidity_stress,
+                    "correlation_spike": macro_inputs.correlation_spike,
+                    "narrative_shock": macro_inputs.narrative_shock,
+                    "structural_confirmation": macro_inputs.structural_confirmation,
+                }
+                if self._macro_source.source_type != "live"
+                else None
+            ),
         }
 
         # --------------------------------------------------
