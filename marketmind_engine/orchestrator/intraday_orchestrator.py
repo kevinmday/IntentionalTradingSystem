@@ -8,6 +8,7 @@ from marketmind_engine.regime.systemic_monitor import (
 from marketmind_engine.regime.systemic_mode import SystemicMode
 from marketmind_engine.regime.macro_sources.base import MacroInputSource
 from marketmind_engine.regime.capital_recovery import CapitalRecoveryController
+from marketmind_engine.regime.domain_modifier import DomainModifierController
 
 from marketmind_engine.execution.policy.default_policy import (
     DefaultRegimeExecutionPolicy,
@@ -35,6 +36,7 @@ class IntradayOrchestrator:
 
         self.systemic_monitor = SystemicMonitor()
         self.recovery_controller = CapitalRecoveryController()
+        self.domain_modifier_controller = DomainModifierController()
 
         self.state = OrchestratorState()
 
@@ -185,6 +187,12 @@ class IntradayOrchestrator:
         recovery_modifier = self.recovery_controller.modifier()
 
         # --------------------------------------------------
+        # PHASE-15 — DOMAIN MODIFIER (NEUTRAL)
+        # --------------------------------------------------
+
+        domain_modifier = self.domain_modifier_controller.modifier()
+
+        # --------------------------------------------------
         # EXECUTION DIRECTIVE
         # --------------------------------------------------
 
@@ -195,6 +203,7 @@ class IntradayOrchestrator:
         final_multiplier = (
             risk_directive.size_multiplier
             * recovery_modifier
+            * domain_modifier
         )
 
         execution_directive = ExecutionDirective(
@@ -217,4 +226,5 @@ class IntradayOrchestrator:
             },
             "composite_score": composite,
             "recovery_modifier": recovery_modifier,
+            "domain_modifier": domain_modifier,
         }
