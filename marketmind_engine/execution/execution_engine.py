@@ -41,9 +41,20 @@ class ExecutionEngine:
         # REGIME ENTRY BLOCK (Phase 12.1)
         # --------------------------------------------------
 
+        size_multiplier = 1.0
+
         if execution_directive is not None:
+
+            # Hard entry block
             if not execution_directive.allow_entries:
                 return None
+
+            # Defensive clamp
+            if execution_directive.size_multiplier is not None:
+                size_multiplier = max(
+                    0.0,
+                    min(1.0, execution_directive.size_multiplier),
+                )
 
         # --------------------------------------------------
         # Policy Authority Gate
@@ -76,22 +87,23 @@ class ExecutionEngine:
             return None
 
         # --------------------------------------------------
-        # Apply Regime Size Multiplier (Phase 12.1)
+        # Apply Regime Size Multiplier
         # --------------------------------------------------
 
-        if execution_directive is not None:
-            risk_capital *= execution_directive.size_multiplier
+        risk_capital *= size_multiplier
 
-            if risk_capital <= 0:
-                return None
+        if risk_capital <= 0:
+            return None
 
         # --------------------------------------------------
         # Stop-Based Risk Sizing (Preferred)
         # --------------------------------------------------
 
         if stop is not None:
+
             risk_per_share = price - stop
 
+            # Must be positive risk
             if risk_per_share <= 0:
                 return None
 

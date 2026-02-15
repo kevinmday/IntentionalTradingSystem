@@ -1,0 +1,3 @@
+{"timestamp": 1771116201.2981668, "previous_regime": "normal", "new_regime": "standby", "composite_score": 1.0, "hard_interrupt": true, "block_new_entries": true, "hysteresis_locked": false, "macro_source_type": "injected", "injected_mode": true}
+{"timestamp": 1771116258.2854478, "previous_regime": "normal", "new_regime": "standby", "composite_score": 1.0, "hard_interrupt": true, "block_new_entries": true, "hysteresis_locked": false, "macro_source_type": "injected", "injected_mode": true}
+{"timestamp": 1771153447.625531, "previous_regime": "normal", "new_regime": "standby", "composite_score": 1.0, "hard_interrupt": true, "block_new_entries": true, "hysteresis_locked": false, "macro_source_type": "injected", "injected_mode": true}

@@ -3,76 +3,104 @@ PHASE-6C CONTRACT TEST — CANDIDATE RANKING & PRIORITIZATION
 
 This test defines ranking invariants ONLY.
 
-No priority bands.
-No thresholds.
-No execution logic.
-No score recomputation.
+No scorer logic.
+No materializer.
+No domain weighting.
+No coherence logic.
 
-If this test fails, Phase-6C is not contract-safe.
+If this test fails, Phase-6C ranking is not contract-safe.
 """
 
 from copy import deepcopy
 
-from marketmind_engine.candidates.scoring.scorer import score_candidates
-from marketmind_engine.candidates.materializer import materialize_candidates
 from marketmind_engine.candidates.ranking.ranker import rank_candidates
+from marketmind_engine.candidates.scoring.types import ScoredCandidate
+
+
+def _scored_fixture():
+    """
+    Deterministic scored candidates for ranking isolation.
+    """
+
+    return [
+        ScoredCandidate(
+            domain="Technology",
+            symbol="AAA",
+            decision="BUY",
+            eligible=True,
+            market_ok=True,
+            components={},
+            score=0.80,
+            priority="BACKLOG",
+            explanation="",
+        ),
+        ScoredCandidate(
+            domain="Technology",
+            symbol="BBB",
+            decision="BUY",
+            eligible=True,
+            market_ok=True,
+            components={},
+            score=0.95,
+            priority="BACKLOG",
+            explanation="",
+        ),
+        ScoredCandidate(
+            domain="Technology",
+            symbol="CCC",
+            decision="BUY",
+            eligible=True,
+            market_ok=True,
+            components={},
+            score=0.80,
+            priority="BACKLOG",
+            explanation="",
+        ),
+    ]
 
 
 def test_phase6c_ranking_contract():
     """
     Phase-6C invariants:
 
-    1. Phase-6B still works unchanged
-    2. Ranking returns a list
-    3. Candidate count is unchanged
-    4. Ranking is deterministic
-    5. Ordering is by descending score
-    6. Ties are stable
-    7. Inputs are not mutated
+    1. Ranking returns a list
+    2. Candidate count unchanged
+    3. Deterministic ordering
+    4. Descending score order
+    5. Stable tie handling
+    6. Inputs not mutated
     """
 
-    # --- Step 1: Produce scored candidates (Phase-6B precondition) ---
-    candidates = materialize_candidates()
-    scored = score_candidates(candidates)
-
-    assert len(scored) > 0, "Precondition failed: no scored candidates"
+    scored = _scored_fixture()
 
     original_scored = deepcopy(scored)
 
-    # --- Step 2: Rank candidates ---
     ranked = rank_candidates(scored)
 
-    # --- Invariant 1: Return type ---
-    assert isinstance(ranked, list), "rank_candidates must return a list"
+    # --- Return type ---
+    assert isinstance(ranked, list)
 
-    # --- Invariant 2: Length preserved ---
-    assert len(ranked) == len(scored), "Ranking must not drop or add candidates"
+    # --- Length preserved ---
+    assert len(ranked) == len(scored)
 
-    # --- Invariant 3: Input immutability ---
-    assert scored == original_scored, "Ranking must not mutate input candidates"
+    # --- Input immutability ---
+    assert scored == original_scored
 
-    # --- Invariant 4: Determinism ---
+    # --- Determinism ---
     ranked_again = rank_candidates(scored)
-    assert ranked == ranked_again, "Ranking must be deterministic across runs"
+    assert ranked == ranked_again
 
-    # --- Invariant 5: Descending score order ---
+    # --- Descending score ---
     scores = [c.score for c in ranked]
-    assert scores == sorted(scores, reverse=True), (
-        "Candidates must be ordered by descending score"
-    )
+    assert scores == sorted(scores, reverse=True)
 
-    # --- Invariant 6: Stable tie-breaking ---
-    # For equal scores, original relative order must be preserved
-    score_to_symbols = {}
-    for c in scored:
-        score_to_symbols.setdefault(c.score, []).append(c.symbol)
+    # --- Stable tie behavior ---
+    # AAA and CCC both 0.80 → relative order must remain
+    tied_symbols_original = [
+        c.symbol for c in scored if c.score == 0.80
+    ]
+    tied_symbols_ranked = [
+        c.symbol for c in ranked if c.score == 0.80
+    ]
 
-    ranked_score_to_symbols = {}
-    for c in ranked:
-        ranked_score_to_symbols.setdefault(c.score, []).append(c.symbol)
-
-    for score, symbols in score_to_symbols.items():
-        if len(symbols) > 1:
-            assert symbols == ranked_score_to_symbols.get(score), (
-                "Ranking must preserve relative order for tied scores"
-            )
+    assert tied_symbols_original == tied_symbols_ranked
