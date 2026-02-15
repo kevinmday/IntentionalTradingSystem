@@ -38,6 +38,9 @@ class SystemicMonitor:
     PRE_SYSTEMIC_THRESHOLD = 0.70
     STRESSED_THRESHOLD = 0.55
 
+    # Continuous scaling constant (Phase-12C)
+    SCALING_K = 1.0  # full linear degradation across band
+
     # ----------------------------------------------------------
     # Hard Interrupt Path
     # ----------------------------------------------------------
@@ -62,17 +65,54 @@ class SystemicMonitor:
         return False
 
     # ----------------------------------------------------------
+    # Continuous Scaling Logic (Phase-12C)
+    # ----------------------------------------------------------
+
+    def _compute_size_multiplier(
+        self,
+        composite_score: float,
+        hard_interrupt: bool,
+    ) -> float:
+        """
+        Continuous deterministic degradation between
+        STRESSED_THRESHOLD and SYSTEMIC_THRESHOLD.
+
+        Hard interrupt forces 0.
+        Clamped between 0 and 1.
+        """
+
+        if hard_interrupt:
+            return 0.0
+
+        if composite_score < self.STRESSED_THRESHOLD:
+            return 1.0
+
+        if composite_score >= self.SYSTEMIC_THRESHOLD:
+            return 0.0
+
+        band = self.SYSTEMIC_THRESHOLD - self.STRESSED_THRESHOLD
+        normalized = (composite_score - self.STRESSED_THRESHOLD) / band
+
+        raw_multiplier = 1.0 - (normalized * self.SCALING_K)
+
+        # Clamp safety
+        return max(0.0, min(1.0, raw_multiplier))
+
+    # ----------------------------------------------------------
     # Evaluation Entry Point
     # ----------------------------------------------------------
 
     def evaluate(self, inputs: SystemicInputs) -> RiskDirective:
 
         # 1) Hard interrupt first
-        if self._hard_interrupt(inputs):
+        hard = self._hard_interrupt(inputs)
+
+        if hard:
             return RiskDirective(
                 mode=SystemicMode.SYSTEMIC,
                 flatten_all=True,
                 block_new_entries=True,
+                size_multiplier=0.0,
                 increase_telemetry=True,
                 reason="Hard interrupt triggered",
             )
@@ -87,31 +127,45 @@ class SystemicMonitor:
             + inputs.structural_confirmation
         ) / 5.0
 
+        size_multiplier = self._compute_size_multiplier(
+            composite_score=composite,
+            hard_interrupt=False,
+        )
+
+        # SYSTEMIC (composite path)
         if composite >= self.SYSTEMIC_THRESHOLD:
             return RiskDirective(
                 mode=SystemicMode.SYSTEMIC,
                 flatten_all=True,
                 block_new_entries=True,
+                size_multiplier=0.0,
                 increase_telemetry=True,
                 reason="Composite systemic threshold breached",
             )
 
+        # PRE_SYSTEMIC
         if composite >= self.PRE_SYSTEMIC_THRESHOLD:
             return RiskDirective(
                 mode=SystemicMode.PRE_SYSTEMIC,
-                block_new_entries=True,
+                block_new_entries=False,
+                size_multiplier=size_multiplier,
                 increase_telemetry=True,
                 reason="Pre-systemic escalation",
             )
 
+        # STRESSED
         if composite >= self.STRESSED_THRESHOLD:
             return RiskDirective(
                 mode=SystemicMode.STRESSED,
+                block_new_entries=False,
+                size_multiplier=size_multiplier,
                 increase_telemetry=True,
                 reason="Stress regime",
             )
 
+        # NORMAL
         return RiskDirective(
             mode=SystemicMode.NORMAL,
+            size_multiplier=1.0,
             reason="Normal regime",
         )

@@ -6,7 +6,6 @@ from marketmind_engine.regime.systemic_monitor import (
     SystemicInputs,
 )
 from marketmind_engine.regime.systemic_mode import SystemicMode
-
 from marketmind_engine.regime.macro_sources.base import MacroInputSource
 
 from marketmind_engine.execution.policy.default_policy import (
@@ -38,6 +37,9 @@ class IntradayOrchestrator:
 
     Phase 12:
     - Regime-driven execution gating
+
+    Phase 12C:
+    - Continuous composite-aware size scaling
     """
 
     def __init__(
@@ -59,19 +61,6 @@ class IntradayOrchestrator:
 
         self._execution_policy = (
             execution_policy or DefaultRegimeExecutionPolicy()
-        )
-
-    # ------------------------------------------------------------------
-    # INTERNAL LIVE COLLECTOR
-    # ------------------------------------------------------------------
-
-    def _collect_macro_inputs(self) -> SystemicInputs:
-        return SystemicInputs(
-            drawdown_velocity=0.0,
-            liquidity_stress=0.0,
-            correlation_spike=0.0,
-            narrative_shock=0.0,
-            structural_confirmation=0.0,
         )
 
     # ------------------------------------------------------------------
@@ -147,17 +136,11 @@ class IntradayOrchestrator:
 
         diagnostics = {
             "macro_source_type": self._macro_source.source_type,
-            "macro_inputs": {
-                "drawdown_velocity": macro_inputs.drawdown_velocity,
-                "liquidity_stress": macro_inputs.liquidity_stress,
-                "correlation_spike": macro_inputs.correlation_spike,
-                "narrative_shock": macro_inputs.narrative_shock,
-                "structural_confirmation": macro_inputs.structural_confirmation,
-            },
             "composite_score": composite,
             "risk_mode": risk_directive.mode.value,
             "flatten_all": risk_directive.flatten_all,
             "block_new_entries": risk_directive.block_new_entries,
+            "size_multiplier": risk_directive.size_multiplier,
         }
 
         previous_mode = self.state.regime_mode
@@ -216,18 +199,27 @@ class IntradayOrchestrator:
             self.state.regime_mode = risk_directive.mode
 
         # --------------------------------------------------
-        # EXECUTION DIRECTIVE (Phase 12)
+        # EXECUTION DIRECTIVE (Phase 12C)
         # --------------------------------------------------
 
-        execution_directive: ExecutionDirective = (
+        base_directive: ExecutionDirective = (
             self._execution_policy.resolve(self.state.regime_mode)
+        )
+
+        execution_directive = ExecutionDirective(
+            allow_entries=(
+                False
+                if risk_directive.block_new_entries
+                else base_directive.allow_entries
+            ),
+            size_multiplier=risk_directive.size_multiplier,
+            risk_level=base_directive.risk_level,
         )
 
         return {
             "timestamp": time(),
             "regime": self.state.regime_mode.value,
             "flatten_triggered": risk_directive.flatten_all,
-            "block_new_entries": execution_directive.allow_entries is False,
             "execution": {
                 "allow_entries": execution_directive.allow_entries,
                 "size_multiplier": execution_directive.size_multiplier,
