@@ -7,6 +7,7 @@ from marketmind_engine.regime.systemic_monitor import (
 )
 from marketmind_engine.regime.systemic_mode import SystemicMode
 from marketmind_engine.regime.macro_sources.base import MacroInputSource
+from marketmind_engine.regime.capital_recovery import CapitalRecoveryController
 
 from marketmind_engine.execution.policy.default_policy import (
     DefaultRegimeExecutionPolicy,
@@ -20,27 +21,6 @@ class OrchestratorState:
 
 
 class IntradayOrchestrator:
-    """
-    Intraday authority router.
-
-    Phase 10:
-    - Hard interrupt path
-    - Composite regime path
-    - SYSTEMIC flatten override
-    - STANDBY hysteresis lock
-
-    Phase 11.5:
-    - Pluggable MacroInputSource
-
-    Phase 12A:
-    - Persistent regime transition audit logging
-
-    Phase 12:
-    - Regime-driven execution gating
-
-    Phase 12C:
-    - Continuous composite-aware size scaling
-    """
 
     def __init__(
         self,
@@ -54,6 +34,8 @@ class IntradayOrchestrator:
         self._audit_writer = audit_writer
 
         self.systemic_monitor = SystemicMonitor()
+        self.recovery_controller = CapitalRecoveryController()
+
         self.state = OrchestratorState()
 
         self.portfolio = portfolio
@@ -63,9 +45,9 @@ class IntradayOrchestrator:
             execution_policy or DefaultRegimeExecutionPolicy()
         )
 
-    # ------------------------------------------------------------------
+    # --------------------------------------------------
     # SYSTEMIC FLATTEN
-    # ------------------------------------------------------------------
+    # --------------------------------------------------
 
     def _flatten_all_positions(self):
 
@@ -77,9 +59,9 @@ class IntradayOrchestrator:
         for position in open_positions:
             self.execution_engine.close(position)
 
-    # ------------------------------------------------------------------
+    # --------------------------------------------------
     # COMPOSITE SCORE
-    # ------------------------------------------------------------------
+    # --------------------------------------------------
 
     def _composite_score(self, inputs: SystemicInputs) -> float:
         return (
@@ -90,9 +72,9 @@ class IntradayOrchestrator:
             + inputs.structural_confirmation
         ) / 5.0
 
-    # ------------------------------------------------------------------
+    # --------------------------------------------------
     # AUDIT TRANSITION HOOK
-    # ------------------------------------------------------------------
+    # --------------------------------------------------
 
     def _audit_transition(
         self,
@@ -122,9 +104,9 @@ class IntradayOrchestrator:
 
         self._audit_writer.write(event)
 
-    # ------------------------------------------------------------------
+    # --------------------------------------------------
     # RUN CYCLE
-    # ------------------------------------------------------------------
+    # --------------------------------------------------
 
     def run_cycle(self):
 
@@ -133,15 +115,6 @@ class IntradayOrchestrator:
         risk_directive = self.systemic_monitor.evaluate(macro_inputs)
 
         composite = self._composite_score(macro_inputs)
-
-        diagnostics = {
-            "macro_source_type": self._macro_source.source_type,
-            "composite_score": composite,
-            "risk_mode": risk_directive.mode.value,
-            "flatten_all": risk_directive.flatten_all,
-            "block_new_entries": risk_directive.block_new_entries,
-            "size_multiplier": risk_directive.size_multiplier,
-        }
 
         previous_mode = self.state.regime_mode
 
@@ -199,11 +172,29 @@ class IntradayOrchestrator:
             self.state.regime_mode = risk_directive.mode
 
         # --------------------------------------------------
-        # EXECUTION DIRECTIVE (Phase 12C)
+        # PHASE-14 — UPDATE RECOVERY CONTROLLER
+        # --------------------------------------------------
+
+        self.recovery_controller.update(
+            previous_mode=previous_mode.value,
+            current_mode=self.state.regime_mode.value,
+            composite_score=composite,
+            stressed_threshold=self.systemic_monitor.STRESSED_THRESHOLD,
+        )
+
+        recovery_modifier = self.recovery_controller.modifier()
+
+        # --------------------------------------------------
+        # EXECUTION DIRECTIVE
         # --------------------------------------------------
 
         base_directive: ExecutionDirective = (
             self._execution_policy.resolve(self.state.regime_mode)
+        )
+
+        final_multiplier = (
+            risk_directive.size_multiplier
+            * recovery_modifier
         )
 
         execution_directive = ExecutionDirective(
@@ -212,18 +203,18 @@ class IntradayOrchestrator:
                 if risk_directive.block_new_entries
                 else base_directive.allow_entries
             ),
-            size_multiplier=risk_directive.size_multiplier,
+            size_multiplier=final_multiplier,
             risk_level=base_directive.risk_level,
         )
 
         return {
             "timestamp": time(),
             "regime": self.state.regime_mode.value,
-            "flatten_triggered": risk_directive.flatten_all,
             "execution": {
                 "allow_entries": execution_directive.allow_entries,
                 "size_multiplier": execution_directive.size_multiplier,
                 "risk_level": execution_directive.risk_level,
             },
-            "diagnostics": diagnostics,
+            "composite_score": composite,
+            "recovery_modifier": recovery_modifier,
         }
