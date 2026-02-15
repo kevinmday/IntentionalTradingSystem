@@ -1,6 +1,7 @@
 from typing import Optional
 
 from marketmind_engine.policy.policy_types import PolicyAction
+from marketmind_engine.execution.policy.base import ExecutionDirective
 
 from .execution_input import ExecutionInput
 from .execution_types import OrderIntent
@@ -16,11 +17,18 @@ class ExecutionEngine:
     Capital-aware.
     Price-aware.
     Stop-aware (optional).
+
+    Phase 12.1:
+    - Regime ExecutionDirective enforcement
     """
 
     DEFAULT_ORDER_TYPE = "market"
 
-    def evaluate(self, input: ExecutionInput) -> Optional[OrderIntent]:
+    def evaluate(
+        self,
+        input: ExecutionInput,
+        execution_directive: Optional[ExecutionDirective] = None,
+    ) -> Optional[OrderIntent]:
 
         policy = input.policy_result
         state = input.market_state
@@ -29,29 +37,61 @@ class ExecutionEngine:
         price = input.current_price
         stop = input.stop_price
 
-        # ---- Authority Gate ----
+        # --------------------------------------------------
+        # REGIME ENTRY BLOCK (Phase 12.1)
+        # --------------------------------------------------
+
+        if execution_directive is not None:
+            if not execution_directive.allow_entries:
+                return None
+
+        # --------------------------------------------------
+        # Policy Authority Gate
+        # --------------------------------------------------
+
         if policy.action != PolicyAction.ALLOW:
             return None
 
-        # ---- Duplicate Symbol Guard ----
+        # --------------------------------------------------
+        # Duplicate Symbol Guard
+        # --------------------------------------------------
+
         if state.symbol in positions.positions:
             return None
 
-        # ---- Price Validation ----
+        # --------------------------------------------------
+        # Price Validation
+        # --------------------------------------------------
+
         if price is None or price <= 0:
             return None
 
-        # ---- Capital Risk Base ----
+        # --------------------------------------------------
+        # Capital Risk Base
+        # --------------------------------------------------
+
         risk_capital = capital.account_equity * capital.max_risk_per_trade
 
         if risk_capital <= 0:
             return None
 
-        # ---- Stop-Based Risk Sizing (Preferred) ----
+        # --------------------------------------------------
+        # Apply Regime Size Multiplier (Phase 12.1)
+        # --------------------------------------------------
+
+        if execution_directive is not None:
+            risk_capital *= execution_directive.size_multiplier
+
+            if risk_capital <= 0:
+                return None
+
+        # --------------------------------------------------
+        # Stop-Based Risk Sizing (Preferred)
+        # --------------------------------------------------
+
         if stop is not None:
             risk_per_share = price - stop
 
-            # Invalid stop (no positive risk)
             if risk_per_share <= 0:
                 return None
 
@@ -59,7 +99,10 @@ class ExecutionEngine:
             rationale = "Intent approved with stop-based risk model"
 
         else:
-            # ---- Fallback: Price-Based Sizing ----
+            # --------------------------------------------------
+            # Fallback: Price-Based Sizing
+            # --------------------------------------------------
+
             position_value = min(risk_capital, capital.buying_power)
 
             if position_value <= 0:
