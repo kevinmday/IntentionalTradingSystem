@@ -5,6 +5,7 @@ This file owns:
 - Engine session state
 - Deterministic engine tick
 - Explicit module dispatch
+- Environment boundary (broker credentials)
 
 Legacy mmai.py is intentionally NOT imported.
 All launched modules must be import-safe.
@@ -12,6 +13,22 @@ All launched modules must be import-safe.
 
 import sys
 import subprocess
+import os
+from pathlib import Path
+
+# -------------------------------------------------------------------
+# Environment Boundary (ONLY place env is loaded)
+# -------------------------------------------------------------------
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    # dotenv optional — system env still supported
+    pass
+
+TRADIER_TOKEN = os.getenv("TRADIER_TOKEN")
+TRADIER_SANDBOX = os.getenv("TRADIER_SANDBOX", "true").lower() == "true"
 
 # -------------------------------------------------------------------
 # Engine-owned monotonic tick (session-scoped, deterministic)
@@ -53,6 +70,26 @@ MODULES = {
 
 
 # -------------------------------------------------------------------
+# Broker Validation (only if trader module invoked)
+# -------------------------------------------------------------------
+
+def validate_broker_requirements(module_name: str):
+    """
+    Validate broker credentials ONLY when required.
+    Does not affect deterministic engine logic.
+    """
+    if module_name in ("trader", "metrics"):
+        if not TRADIER_TOKEN:
+            print("[ENGINE] TRADIER_TOKEN not found in environment.")
+            print("[ENGINE] Set it via:")
+            print("    setx TRADIER_TOKEN \"your_token_here\"")
+            sys.exit(1)
+
+        print("[ENGINE] Tradier token detected.")
+        print(f"[ENGINE] Sandbox mode: {TRADIER_SANDBOX}")
+
+
+# -------------------------------------------------------------------
 # Launcher
 # -------------------------------------------------------------------
 
@@ -65,15 +102,24 @@ def run_module(name: str):
     - Flask isolated
     - Import side-effects contained
     """
+
     if name not in MODULES:
         print(f"[ENGINE] Unknown module '{name}'.")
         print(f"[ENGINE] Available modules: {', '.join(MODULES.keys())}")
         sys.exit(1)
 
+    validate_broker_requirements(name)
+
     target = MODULES[name]
+    resolved_path = Path(target)
+
+    if not resolved_path.exists():
+        print(f"[ENGINE] Target file not found: {resolved_path}")
+        sys.exit(1)
+
     print(f"[ENGINE] Launching module: {name} -> {target}")
 
-    subprocess.run([sys.executable, target], check=False)
+    subprocess.run([sys.executable, str(resolved_path)], check=False)
 
 
 # -------------------------------------------------------------------

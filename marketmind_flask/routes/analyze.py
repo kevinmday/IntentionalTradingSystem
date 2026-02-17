@@ -1,40 +1,40 @@
 # marketmind_flask/routes/analyze.py
 
 from flask import Blueprint, jsonify, request
+from marketmind_flask.adapters.engine_adapter import EngineAdapter
 
-from marketmind_flask.adapters.engine_adapter import (
-    analyze_symbol_adapter,
-    analyze_batch_adapter,
-)
-
-bp = Blueprint("analyze", __name__)
+analyze_bp = Blueprint("analyze", __name__)
 
 
-@bp.route("/analyze/<symbol>", methods=["GET"])
+@analyze_bp.route("/analyze/<symbol>", methods=["GET"])
 def analyze_symbol(symbol: str):
     """
     Analyze a single symbol.
     Thin Flask → adapter → engine delegation.
     """
-    result = analyze_symbol_adapter(symbol=symbol)
-    return jsonify(result)
+
+    engine = EngineAdapter()
+    candidate = engine.get_candidate(symbol)
+
+    if not candidate:
+        return jsonify({"error": "analysis failed"}), 500
+
+    return jsonify(candidate), 200
 
 
-@bp.route("/analyze/batch", methods=["POST"])
+@analyze_bp.route("/analyze/batch", methods=["POST"])
 def analyze_batch():
     """
     Analyze multiple symbols.
 
     Expects JSON:
     {
-        "symbols": ["AAPL", "MSFT", ...],
-        "context": {...}   # optional
+        "symbols": ["AAPL", "MSFT", ...]
     }
     """
-    payload = request.get_json(silent=True) or {}
 
+    payload = request.get_json(silent=True) or {}
     symbols = payload.get("symbols", [])
-    context = payload.get("context")
 
     if not isinstance(symbols, list):
         return jsonify({
@@ -42,5 +42,14 @@ def analyze_batch():
             "received": type(symbols).__name__,
         }), 400
 
-    result = analyze_batch_adapter(symbols=symbols, context=context)
-    return jsonify(result)
+    engine = EngineAdapter()
+
+    results = []
+    for symbol in symbols:
+        candidate = engine.get_candidate(symbol)
+        results.append({
+            "symbol": symbol,
+            "result": candidate
+        })
+
+    return jsonify(results), 200

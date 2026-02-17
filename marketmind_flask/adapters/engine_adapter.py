@@ -1,56 +1,36 @@
 """
 Engine Adapter
---------------
-Thin delegation layer between Flask and marketmind_engine.
 
-Rules:
-- No Flask imports
-- No logic
-- No defaults
-- No state
+Pure deterministic bridge into marketmind_engine.
+No Flask.
+No broker.
+No execution.
 """
 
-# marketmind_flask/adapters/engine_adapter.py
-
-from marketmind_engine.api import (
-    get_metrics,
-    analyze_symbol,
-    analyze_batch,
-    decide,
-    health,
-)
+from marketmind_engine.api import analyze_symbol  # adjust if needed
 
 
-def metrics_adapter() -> dict:
+class EngineAdapter:
     """
-    Thin delegation to engine metrics.
+    Deterministic wrapper around marketmind_engine.
     """
-    return get_metrics()
 
+    def get_candidate(self, symbol: str):
+        """
+        Returns structured candidate dict for Flask layer.
+        """
 
-def analyze_symbol_adapter(symbol: str, context: dict | None = None) -> dict:
-    """
-    Thin delegation to engine analyze_symbol.
-    """
-    return analyze_symbol(symbol=symbol, context=context)
+        result = analyze_symbol(symbol)
 
+        if not result:
+            return None
 
-def analyze_batch_adapter(symbols: list[str], context: dict | None = None) -> dict:
-    """
-    Thin delegation to engine analyze_batch.
-    """
-    return analyze_batch(symbols=symbols, context=context)
-
-
-def decide_adapter(signal: dict) -> dict:
-    """
-    Thin delegation to engine decision logic.
-    """
-    return decide(signal)
-
-
-def health_adapter() -> dict:
-    """
-    Thin delegation to engine health.
-    """
-    return health()
+        return {
+            "symbol": symbol,
+            "eligible": result.get("eligible", False),
+            "score": result.get("score"),
+            "price": result.get("price"),
+            "recommended_quantity": result.get("recommended_quantity"),
+            "regime": result.get("regime"),
+            "raw": result
+        }
