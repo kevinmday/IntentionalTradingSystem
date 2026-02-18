@@ -1,19 +1,32 @@
-from typing import Dict
-from .base import MacroInputSource
+from marketmind_engine.regime.macro_sources.base import MacroInputSource
+from marketmind_engine.regime.systemic_monitor import SystemicInputs
 
 
-class LiveMacroSource:
+class LiveMacroSource(MacroInputSource):
     """
-    Production macro source.
-    Delegates to orchestrator collector.
+    Live macro input source.
+
+    Owns its own collection logic.
+    No external callable required.
     """
 
-    def __init__(self, collector_callable):
-        self._collector = collector_callable
+    source_type = "live"
 
-    def collect(self) -> Dict:
-        return self._collector()
+    def __init__(self):
+        pass
 
-    @property
-    def source_type(self) -> str:
-        return "live"
+    def collect(self) -> SystemicInputs:
+        """
+        Collect live systemic inputs.
+
+        Replace placeholder values with real data feeds later.
+        """
+
+        # TEMP deterministic placeholders
+        return SystemicInputs(
+            drawdown_velocity=0.1,
+            liquidity_stress=0.1,
+            correlation_spike=0.1,
+            narrative_shock=0.1,
+            structural_confirmation=0.1,
+        )
