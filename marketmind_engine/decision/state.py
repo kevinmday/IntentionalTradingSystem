@@ -16,7 +16,7 @@ class MarketState:
     # Core identity
     # --------------------------------------------------
     symbol: Optional[str]
-    domain: Optional[str]          # ← ADD THIS
+    domain: Optional[str]
     narrative: Optional[str]
 
     # --------------------------------------------------
@@ -44,3 +44,11 @@ class MarketState:
     liquidity: Optional[float] = None
     volatility: Optional[float] = None
     responsiveness: Optional[float] = None
+
+    # --------------------------------------------------
+    # Phase-9C: Narrative–Price Latency Support
+    # --------------------------------------------------
+    engine_time: Optional[int] = None          # session-relative seconds (ENGINE_CLOCK)
+    ignition_time: Optional[int] = None        # engine_time at narrative trigger
+    price_delta: Optional[float] = None        # % displacement since ignition
+    volume_ratio: Optional[float] = None       # volume vs rolling baseline

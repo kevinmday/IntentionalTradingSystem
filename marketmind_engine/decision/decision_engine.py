@@ -17,15 +17,19 @@ from marketmind_engine.decision.rules.intent.narrative_acceleration import (
 from marketmind_engine.decision.rules.bell_drake_threshold import (
     BellDrakeThreshold,
 )
+from marketmind_engine.decision.rules.constraint.narrative_price_latency import (
+    NarrativePriceLatencyRule,
+)
 
 
 class DecisionEngine:
     """
-    Canonical DecisionEngine (Phase-8B)
+    Canonical DecisionEngine (Phase-9C enhanced)
 
     - Executes deterministic rules via RuleRegistry
     - Aggregates RuleResults
-    - Emits ALLOW_BUY ONLY when Bell-Drake triggers
+    - Bell-Drake remains intent authority
+    - Constraint rules may veto via block=True
     - No eligibility, capacity, or capital logic
     """
 
@@ -34,6 +38,7 @@ class DecisionEngine:
             rules=[
                 NarrativeAccelerationRule(),
                 BellDrakeThreshold(),
+                NarrativePriceLatencyRule(),  # Phase-9C constraint gate
             ]
         )
 
@@ -46,13 +51,27 @@ class DecisionEngine:
 
         decision = "NO_ACTION"
 
+        bell_drake_triggered = False
+        blocked = False
+
         # --------------------------------------------------
-        # Phase-8B: Bell-Drake is intent authority
+        # Evaluate rule authority + veto
         # --------------------------------------------------
         for r in rule_results:
+
+            # Constraint veto
+            if r.block:
+                blocked = True
+
+            # Intent authority
             if r.rule_name == "BellDrakeThreshold" and r.triggered:
-                decision = "ALLOW_BUY"
-                break
+                bell_drake_triggered = True
+
+        # --------------------------------------------------
+        # Final decision logic
+        # --------------------------------------------------
+        if bell_drake_triggered and not blocked:
+            decision = "ALLOW_BUY"
 
         return DecisionResult(
             decision=decision,
