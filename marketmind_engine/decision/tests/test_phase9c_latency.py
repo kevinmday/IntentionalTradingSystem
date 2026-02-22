@@ -1,5 +1,3 @@
-import pytest
-
 from marketmind_engine.decision.rules.constraint.narrative_price_latency import (
     NarrativePriceLatencyRule,
 )
@@ -55,6 +53,7 @@ def test_within_window_and_coupled():
 
     assert result.block is False
     assert result.triggered is True
+    assert result.reason.startswith("COUPLING_CONFIRMED")
 
 
 def test_price_too_small_blocks():
@@ -71,6 +70,7 @@ def test_price_too_small_blocks():
 
     assert result.block is True
     assert result.triggered is False
+    assert result.reason.startswith("LATENCY_FAIL")
 
 
 def test_volume_too_small_blocks():
@@ -87,6 +87,7 @@ def test_volume_too_small_blocks():
 
     assert result.block is True
     assert result.triggered is False
+    assert result.reason.startswith("LATENCY_FAIL")
 
 
 def test_window_expired_blocks():
@@ -102,6 +103,7 @@ def test_window_expired_blocks():
     result = rule.evaluate(state)
 
     assert result.block is True
+    assert result.triggered is False
     assert result.reason.startswith("LATENCY_WINDOW_EXCEEDED")
 
 
@@ -118,6 +120,7 @@ def test_negative_latency_blocks():
     result = rule.evaluate(state)
 
     assert result.block is True
+    assert result.triggered is False
     assert result.reason.startswith("INVALID_LATENCY")
 
 
@@ -134,3 +137,5 @@ def test_boundary_conditions_pass():
     result = rule.evaluate(state)
 
     assert result.block is False
+    assert result.triggered is True
+    assert result.reason.startswith("COUPLING_CONFIRMED")

@@ -1,5 +1,5 @@
 from typing import Iterable, Mapping, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from marketmind_engine.adapters.contracts import NarrativeContext
 
@@ -29,6 +29,7 @@ class NarrativeAdapter:
     ) -> Optional[NarrativeContext]:
         """
         raw_events expected shape (minimal):
+
         [
           {
             "source": "Reuters",
@@ -41,14 +42,15 @@ class NarrativeAdapter:
         if not raw_events:
             return None
 
-        now = datetime.utcnow()
+        # Timezone-aware UTC (no deprecated utcnow usage)
+        now = datetime.now(timezone.utc)
         window_start = now - timedelta(hours=self.lookback_hours)
 
         recent_events = []
-        for e in raw_events:
-            ts = self._parse_time(e.get("timestamp"))
+        for event in raw_events:
+            ts = self._parse_time(event.get("timestamp"))
             if ts and ts >= window_start:
-                recent_events.append(e)
+                recent_events.append(event)
 
         if len(recent_events) < self.min_sources:
             return None
@@ -59,18 +61,21 @@ class NarrativeAdapter:
         late = 0
         sources = set()
 
-        for e in recent_events:
-            ts = self._parse_time(e.get("timestamp"))
+        for event in recent_events:
+            ts = self._parse_time(event.get("timestamp"))
             if not ts:
                 continue
 
-            sources.add(e.get("source"))
+            source = event.get("source")
+            if source:
+                sources.add(source)
 
             if ts < midpoint:
                 early += 1
             else:
                 late += 1
 
+        # Acceleration logic
         if early == 0:
             accelerating = late >= self.min_sources
         else:
@@ -91,11 +96,26 @@ class NarrativeAdapter:
 
     @staticmethod
     def _parse_time(value) -> Optional[datetime]:
+        """
+        Accepts:
+        - datetime (naive or aware)
+        - ISO8601 string
+        Returns:
+        - timezone-aware UTC datetime
+        """
+
         if isinstance(value, datetime):
-            return value
+            if value.tzinfo is None:
+                return value.replace(tzinfo=timezone.utc)
+            return value.astimezone(timezone.utc)
+
         if isinstance(value, str):
             try:
-                return datetime.fromisoformat(value)
+                dt = datetime.fromisoformat(value)
+                if dt.tzinfo is None:
+                    return dt.replace(tzinfo=timezone.utc)
+                return dt.astimezone(timezone.utc)
             except ValueError:
                 return None
+
         return None

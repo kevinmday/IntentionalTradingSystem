@@ -1,11 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from marketmind_engine.adapters.narrative_adapter import NarrativeAdapter
 
 
 def make_event(hours_ago, source):
     return {
-        "timestamp": datetime.utcnow() - timedelta(hours=hours_ago),
+        "timestamp": datetime.now(timezone.utc) - timedelta(hours=hours_ago),
         "source": source,
     }
 
