@@ -21,6 +21,10 @@ class ExecutionService:
     def __init__(self, broker: BrokerAdapter):
         self._broker = broker
 
+    # --------------------------------------------------
+    # Path 1 — Decision-driven execution (unit test path)
+    # --------------------------------------------------
+
     def execute(
         self,
         decision: DecisionResult,
@@ -43,5 +47,20 @@ class ExecutionService:
             rationale=rationale,
             confidence=confidence,
         )
+
+        return self._broker.submit(order_intent)
+
+    # --------------------------------------------------
+    # Path 2 — Direct OrderIntent submission (runtime path)
+    # --------------------------------------------------
+
+    def submit_intent(
+        self,
+        order_intent: OrderIntent,
+    ) -> ExecutionReceipt:
+        """
+        Submit a fully constructed OrderIntent.
+        Used by RuntimeExecutor after TradeCoordinator.
+        """
 
         return self._broker.submit(order_intent)
