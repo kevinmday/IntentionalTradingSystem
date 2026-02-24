@@ -13,6 +13,23 @@ if str(ENGINE_DIR) not in sys.path:
 from flask import Flask, send_from_directory, jsonify, request
 from flask_cors import CORS
 
+# -----------------------------------------------------------------------------
+# Engine Imports
+# -----------------------------------------------------------------------------
+
+from marketmind_engine.api import (
+    get_metrics,
+    get_candidates,
+    health,
+)
+
+# ✅ FIXED IMPORT PATH
+from marketmind_engine.persistence.rss_cache import (
+    get_rss_cache,
+    last_refresh_iso,
+    refresh_rss_cache,
+)
+
 from marketmind_engine.orchestrator.intraday_orchestrator import (
     IntradayOrchestrator,
 )
@@ -43,10 +60,6 @@ else:
 # -----------------------------------------------------------------------------
 
 def build_live_orchestrator():
-    """
-    Construct live-mode orchestrator.
-    MacroSource owns collection.
-    """
     live_source = LiveMacroSource()
     return IntradayOrchestrator(macro_source=live_source)
 
@@ -60,13 +73,16 @@ def build_injected_orchestrator(macro_inputs: dict):
 orchestrator = build_live_orchestrator()
 
 # -----------------------------------------------------------------------------
-# Routes
+# Static UI
 # -----------------------------------------------------------------------------
 
 @app.route("/")
 def index():
     return send_from_directory(app.static_folder, "index.html")
 
+# -----------------------------------------------------------------------------
+# Regime Endpoints (Existing)
+# -----------------------------------------------------------------------------
 
 @app.route("/regime")
 def regime():
@@ -76,7 +92,6 @@ def regime():
 
 @app.route("/regime/inject", methods=["POST"])
 def inject_regime():
-
     global orchestrator
 
     payload = request.get_json(silent=True)
@@ -85,7 +100,6 @@ def inject_regime():
         return jsonify({"error": "Payload must include 'macro_inputs'"}), 400
 
     orchestrator = build_injected_orchestrator(payload["macro_inputs"])
-
     snapshot = orchestrator.run_cycle()
 
     return jsonify({
@@ -96,11 +110,9 @@ def inject_regime():
 
 @app.route("/regime/inject/disable", methods=["POST"])
 def disable_injection():
-
     global orchestrator
 
     orchestrator = build_live_orchestrator()
-
     snapshot = orchestrator.run_cycle()
 
     return jsonify({
@@ -108,6 +120,59 @@ def disable_injection():
         "snapshot": snapshot,
     })
 
+# -----------------------------------------------------------------------------
+# System Snapshot (NEW)
+# -----------------------------------------------------------------------------
+
+@app.route("/api/system-snapshot", methods=["GET"])
+def system_snapshot():
+    """
+    Unified system state surface.
+    Read-only.
+    Does not mutate engine state.
+    """
+
+    metrics = get_metrics()
+    candidates = get_candidates()
+    engine_health = health()
+
+    rss_entries = get_rss_cache() or []
+    rss_last_refresh = last_refresh_iso()
+
+    return jsonify({
+        "timestamp": metrics.get("timestamp"),
+
+        "engine": {
+            "health": engine_health,
+            "mode": metrics.get("mode"),
+            "data_source": metrics.get("data_source"),
+        },
+
+        "metrics": metrics,
+
+        "rss": {
+            "last_refresh": rss_last_refresh,
+            "count": len(rss_entries),
+            "entries": rss_entries[:10],
+        },
+
+        "candidates": candidates,
+    })
+
+
+@app.route("/api/rss/refresh", methods=["POST"])
+def refresh_rss():
+    """
+    Explicit RSS refresh trigger.
+    """
+
+    entries = refresh_rss_cache(force=True)
+
+    return jsonify({
+        "status": "refreshed",
+        "count": len(entries),
+        "last_refresh": last_refresh_iso(),
+    })
 
 # -----------------------------------------------------------------------------
 # Runtime
