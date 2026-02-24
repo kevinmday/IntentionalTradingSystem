@@ -1,0 +1,79 @@
+# -------------------------------------------------------------------
+# MarketMind Feed Configuration
+# -------------------------------------------------------------------
+# Feeds define narrative signal sources.
+# Parsers are selected by `type`.
+# Only enabled feeds are loaded.
+# -------------------------------------------------------------------
+
+version: 1
+
+global:
+  refresh_interval_seconds: 120
+  max_entries_per_feed: 50
+  default_weight: 1.0
+  enabled: true
+
+feeds:
+
+  # ===============================================================
+  # MACRO NEWS
+  # ===============================================================
+
+  - id: cnn_top
+    type: rss
+    url: https://rss.cnn.com/rss/edition.rss
+    domain: macro
+    weight: 1.0
+    enabled: true
+
+  - id: reuters_top
+    type: rss
+    url: https://feeds.reuters.com/reuters/topNews
+    domain: macro
+    weight: 1.2
+    enabled: true
+
+
+  # ===============================================================
+  # AI-BIO SECTOR
+  # ===============================================================
+
+  - id: ai_bio_google
+    type: rss
+    url: https://news.google.com/rss/search?q=AI+biotech+stock
+    domain: ai-bio
+    weight: 1.5
+    enabled: true
+
+
+  # ===============================================================
+  # DEFENSE SECTOR
+  # ===============================================================
+
+  - id: defense_google
+    type: rss
+    url: https://news.google.com/rss/search?q=defense+stocks
+    domain: defense
+    weight: 1.3
+    enabled: true
+
+
+  # ===============================================================
+  # INTERNAL / FUTURE SIGNAL TYPES
+  # (Disabled until adapters implemented)
+  # ===============================================================
+
+  - id: rippletruth_stream
+    type: rippletruth
+    source: local_object_stream
+    domain: narrative
+    weight: 2.0
+    enabled: false
+
+  - id: itip_stream
+    type: itip
+    source: itip_event_bus
+    domain: macro
+    weight: 1.8
+    enabled: false
