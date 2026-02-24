@@ -2,9 +2,9 @@
 
 
 class NarrativeBuffer:
-    \"\"\"
+    """
     Thread-safe storage for latest headlines snapshot.
-    \"\"\"
+    """
 
     def __init__(self):
         self._lock = threading.Lock()

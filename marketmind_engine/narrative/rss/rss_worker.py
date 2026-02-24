@@ -1,24 +1,30 @@
 ﻿import time
+from marketmind_engine.narrative.feed_aggregator import FeedAggregator
 
 
 class RSSWorker:
-    \"\"\"
+    """
     Background polling worker.
-    Stub only — does not start thread yet.
-    \"\"\"
+    Still no threading.
+    Now normalizes entries through FeedAggregator.
+    """
 
     def __init__(self, registry, fetcher, buffer):
         self.registry = registry
         self.fetcher = fetcher
         self.buffer = buffer
+        self.aggregator = FeedAggregator()
 
     def poll_once(self):
-        headlines = []
+        raw_entries = {}
 
         for url in self.registry.get_feeds():
-            headlines.extend(self.fetcher.fetch(url))
+            entries = self.fetcher.fetch(url)
+            raw_entries[url] = entries
 
-        self.buffer.update(headlines)
+        normalized_items = self.aggregator.aggregate(raw_entries)
+
+        self.buffer.update(normalized_items)
 
     def run_loop(self, interval_seconds=60):
         while True:
