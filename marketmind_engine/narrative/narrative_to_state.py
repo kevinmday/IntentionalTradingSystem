@@ -9,12 +9,10 @@ class NarrativeStateAdapter:
     """
     Converts NarrativeItem objects into MarketState instances.
 
-    IGNITION TEST MODE:
-    Forces high-coherence values to validate Bell-Drake trigger path.
-
+    Natural deterministic mapping.
+    No forced ignition.
     No price data.
     No capital logic.
-    Deterministic.
     """
 
     def __init__(self, engine_id="narrative-intake"):
@@ -25,12 +23,17 @@ class NarrativeStateAdapter:
 
         for item in items:
 
-            # --------------------------------------------------
-            # Controlled ignition values (force Bell-Drake test)
-            # --------------------------------------------------
-            fils = 0.85
-            ucip = 0.90
-            ttcf = 0.05  # low chaos
+            # ---------------------------------------------
+            # Deterministic weight-based mapping
+            # ---------------------------------------------
+            weight = item.weight if item.weight is not None else 1.0
+
+            # Conservative narrative strength scaling
+            fils = min(1.0, 0.5 * weight)
+            ucip = min(1.0, 0.6 * weight)
+
+            # Baseline low chaos assumption for fresh narrative
+            ttcf = 0.1
 
             state = MarketState(
                 symbol=None,
@@ -46,10 +49,10 @@ class NarrativeStateAdapter:
                 liquidity=None,
                 volatility=None,
                 responsiveness=None,
-                engine_time=10,
+                engine_time=0,
                 ignition_time=0,
-                price_delta=0.02,
-                volume_ratio=1.5,
+                price_delta=0.0,
+                volume_ratio=1.0,
             )
 
             states.append(state)
