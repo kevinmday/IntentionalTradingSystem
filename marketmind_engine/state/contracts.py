@@ -36,3 +36,7 @@ class MarketState:
     price: Optional[float] = None
     price_delta: float = 0.0
     volume_ratio: float = 1.0
+
+    # --- Derived Signal Metrics ---
+    drift: float = 0.0
+    delta_since_ignition: float = 0.0

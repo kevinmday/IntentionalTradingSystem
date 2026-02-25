@@ -1,20 +1,26 @@
 from marketmind_engine.state.builder import MarketStateBuilder
+from marketmind_engine.state.contracts import MarketState
 from marketmind_engine.adapters.narrative_adapter import NarrativeAdapter
 from marketmind_engine.decision.decision_engine import DecisionEngine
 
 from symbol_resolver import SymbolResolver
 from price_coupler import PriceCoupler
 
+import os
+
+IGNITION_TIME_FILE = "ignition_anchor.txt"
+IGNITION_PRICE_FILE = "ignition_price.txt"
+
 
 def main():
 
-    # --- Sample RSS Text (replace with real feed later) ---
+    # --- Sample RSS Text ---
     rss_text = """
     Apple AAPL and Tesla TSLA rally after IBM earnings surprise.
     Multiple analysts upgraded Apple following strong AI integration commentary.
     """
 
-    # --- Mock narrative events (simulate RSS timestamps) ---
+    # --- Mock narrative events ---
     from datetime import datetime, timedelta, timezone
 
     now = datetime.now(timezone.utc)
@@ -25,7 +31,6 @@ def main():
         {"source": "CNBC", "timestamp": now - timedelta(hours=1)},
     ]
 
-    # --- Build enriched MarketState ---
     builder = MarketStateBuilder(
         narrative_adapter=NarrativeAdapter(),
         symbol_resolver=SymbolResolver(),
@@ -37,27 +42,82 @@ def main():
         "text": rss_text,
     }
 
-    state = builder.build(raw_inputs)
+    built_state = builder.build(raw_inputs)
 
-    # --- Decision Engine ---
+    pc = PriceCoupler()
+    metrics = pc.get_price_metrics("PLTR")
+
+    engine_time = built_state.engine_time
+    current_price = metrics["price"]
+
+    # ============================================================
+    # 🔥 IGNITION TIME PERSISTENCE
+    # ============================================================
+
+    if os.path.exists(IGNITION_TIME_FILE):
+        with open(IGNITION_TIME_FILE, "r") as f:
+            ignition_time = int(f.read().strip())
+    else:
+        ignition_time = engine_time
+        with open(IGNITION_TIME_FILE, "w") as f:
+            f.write(str(ignition_time))
+
+    # ============================================================
+    # 🔥 IGNITION PRICE PERSISTENCE
+    # ============================================================
+
+    if os.path.exists(IGNITION_PRICE_FILE):
+        with open(IGNITION_PRICE_FILE, "r") as f:
+            ignition_price = float(f.read().strip())
+    else:
+        ignition_price = current_price
+        with open(IGNITION_PRICE_FILE, "w") as f:
+            f.write(str(ignition_price))
+
+    # --- Calculate ignition-relative delta ---
+    delta_since_ignition = (current_price - ignition_price) / ignition_price
+
+    state = MarketState(
+        symbol="PLTR",
+        domain="equity",
+        fils=0.82,
+        ucip=0.91,
+        ttcf=0.08,
+        narrative=built_state.narrative,
+        engine_time=engine_time,
+        ignition_time=ignition_time,
+        volatility=built_state.volatility,
+        liquidity=built_state.liquidity,
+        price=current_price,
+        price_delta=metrics["price_delta"],  # structural 15-min delta
+        volume_ratio=metrics["volume_ratio"],
+    )
+
     engine = DecisionEngine()
     result = engine.evaluate(state)
 
-    # --- Structured Output ---
-    print("\n===== OBSERVE MODE OUTPUT =====\n")
+    # ============================================================
+    # OUTPUT
+    # ============================================================
+
+    print("\n===== LIVE IGNITION TEST (PLTR) =====\n")
     print("Symbol:", state.symbol)
-    print("Price:", state.price)
-    print("Price Delta:", state.price_delta)
+    print("Current Price:", current_price)
+    print("Ignition Price:", ignition_price)
+    print("Engine Time:", state.engine_time)
+    print("Ignition Time:", state.ignition_time)
+    print("Latency (s):", state.engine_time - state.ignition_time)
+
+    print("\nDelta Since Ignition:", round(delta_since_ignition, 6))
+    print("Structural 15m Delta:", state.price_delta)
     print("Volume Ratio:", state.volume_ratio)
 
-    if state.narrative:
-        print("\nNarrative Accelerating:", state.narrative.accelerating)
-        print("Source Count:", state.narrative.source_count)
-        print("Notes:", state.narrative.notes)
-    else:
-        print("\nNarrative: None")
+    print("\nFILS:", state.fils)
+    print("UCIP:", state.ucip)
+    print("TTCF:", state.ttcf)
 
     print("\nDecision:", result.decision)
+
     print("\nRule Results:")
     for r in result.rule_results:
         print(" -", r.rule_name, "| Triggered:", r.triggered, "| Block:", r.block, "| Reason:", r.reason)
