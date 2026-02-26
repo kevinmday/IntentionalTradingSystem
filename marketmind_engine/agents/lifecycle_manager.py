@@ -13,13 +13,15 @@ class AgentLifecycleManager:
     - Removes agents for closed positions
     - Evaluates all agents
     - Emits AgentSignals only
+    - Routes RSS telemetry (observational only)
 
     No execution.
     No capital mutation.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, debug_attention: bool = False) -> None:
         self._agents: Dict[str, PositionAgent] = {}
+        self._debug_attention = debug_attention
 
     # -------------------------------------------------
     # Portfolio Sync
@@ -65,7 +67,53 @@ class AgentLifecycleManager:
             signal = agent.evaluate(context)
             signals.append(signal)
 
+            # ---------------------------------------------
+            # DEBUG ATTENTION TELEMETRY (NON-INVASIVE)
+            # ---------------------------------------------
+            if self._debug_attention:
+                snapshot = agent.get_attention_snapshot()
+                if snapshot:
+                    print(
+                        f"[ATTN] {symbol} | "
+                        f"density={snapshot.density:.3f} | "
+                        f"velocity={snapshot.velocity:.3f} | "
+                        f"spread={snapshot.source_spread:.3f} | "
+                        f"sentiment={snapshot.sentiment_bias:.3f}"
+                    )
+
         return signals
+
+    # -------------------------------------------------
+    # RSS ROUTING (OBSERVATIONAL ONLY)
+    # -------------------------------------------------
+
+    def route_rss_event(self, event: Dict) -> None:
+        """
+        Forward symbol-specific RSS event to active agent.
+
+        Expected event structure:
+        {
+            "symbol": str,
+            "engine_time": int,
+            "source": str,
+            "sentiment": float
+        }
+
+        This does NOT influence exit logic in v1.
+        """
+
+        if not event:
+            return
+
+        symbol = event.get("symbol")
+        if not symbol:
+            return
+
+        agent = self._agents.get(symbol)
+        if not agent:
+            return
+
+        agent.on_rss_event(event)
 
     # -------------------------------------------------
     # Introspection
@@ -73,3 +121,14 @@ class AgentLifecycleManager:
 
     def active_symbols(self) -> List[str]:
         return list(self._agents.keys())
+
+    def get_attention_snapshot(self, symbol: str):
+        """
+        Optional inspection helper.
+        Does not affect trading logic.
+        """
+        agent = self._agents.get(symbol)
+        if not agent:
+            return None
+
+        return agent.get_attention_snapshot()

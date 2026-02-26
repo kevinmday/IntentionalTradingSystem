@@ -1,10 +1,13 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Optional
 
 from marketmind_engine.execution.position import Position
 from marketmind_engine.agents.agent_signal import AgentSignal
 from marketmind_engine.intelligence.personality_snapshot import (
     PersonalitySnapshot,
+)
+from marketmind_engine.attention.symbol_attention_profile import (
+    SymbolAttentionProfile,
 )
 
 
@@ -18,9 +21,51 @@ class PositionAgent:
     Does NOT mutate portfolio.
 
     Personality is advisory only (confidence weighting).
+
+    RSS Attention:
+        Observational only.
+        Does NOT modify exit authority.
     """
 
     position: Position
+    attention_profile: SymbolAttentionProfile = field(init=False)
+
+    def __post_init__(self):
+        # Attach deterministic attention tracker
+        self.attention_profile = SymbolAttentionProfile(self.position.symbol)
+
+    # -------------------------------------------------
+    # RSS ATTENTION HOOK (Observational Only)
+    # -------------------------------------------------
+
+    def on_rss_event(self, event: Dict) -> None:
+        """
+        Forward symbol-specific RSS events into attention profile.
+
+        Expected event structure:
+        {
+            "engine_time": int,
+            "source": str,
+            "sentiment": float
+        }
+
+        This does NOT influence exit logic in v1.
+        """
+        if not event:
+            return
+
+        self.attention_profile.ingest(event)
+
+    def get_attention_snapshot(self):
+        """
+        Returns AttentionSnapshot.
+        Observational only.
+        """
+        return self.attention_profile.snapshot()
+
+    # -------------------------------------------------
+    # EXIT AUTHORITY EVALUATION
+    # -------------------------------------------------
 
     def evaluate(
         self,
