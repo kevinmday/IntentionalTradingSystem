@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
+import inspect
 
 from marketmind_engine.runtime.build_engine import build_engine
 from marketmind_engine.execution.execution_input import ExecutionInput
@@ -53,16 +54,40 @@ def engine_status():
 
 @app.post("/engine/run")
 def run_engine(req: RunRequest):
+
     if not engine_controller.is_running():
         return {"error": "Engine is not started."}
 
-    execution_input = ExecutionInput(
-        symbol=req.symbol or "TEST"
-    )
+    try:
+        # Inspect ExecutionInput signature dynamically
+        sig = inspect.signature(ExecutionInput)
+        params = sig.parameters
 
-    result = engine_controller.run_once(execution_input)
+        # Build kwargs dynamically based on actual constructor
+        kwargs: Dict[str, Any] = {}
 
-    return result
+        if "symbol" in params:
+            kwargs["symbol"] = req.symbol or "TEST"
+
+        # Add additional safe defaults if needed
+        if "timestamp" in params:
+            kwargs["timestamp"] = None
+
+        execution_input = ExecutionInput(**kwargs)
+
+        result = engine_controller.run_once(execution_input)
+
+        return {
+            "success": True,
+            "input": kwargs,
+            "result": result,
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+        }
 
 
 # ------------------------------------------------------------------

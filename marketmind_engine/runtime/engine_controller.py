@@ -25,6 +25,10 @@ class EngineController:
         self._last_result: Optional[Dict[str, Any]] = None
         self._running: bool = False
 
+    # --------------------------------------------------
+    # Lifecycle
+    # --------------------------------------------------
+
     def start(self) -> None:
         self._running = True
 
@@ -34,11 +38,16 @@ class EngineController:
     def is_running(self) -> bool:
         return self._running
 
+    # --------------------------------------------------
+    # Low-Level Execution (Existing Behavior)
+    # --------------------------------------------------
+
     def run_once(
         self,
         execution_input: ExecutionInput,
         market_context_map: Optional[dict] = None,
     ) -> Dict[str, Any]:
+
         if not self._running:
             raise RuntimeError("Engine is not started.")
 
@@ -49,6 +58,38 @@ class EngineController:
 
         self._last_result = result
         return result
+
+    # --------------------------------------------------
+    # High-Level Browser Trigger
+    # --------------------------------------------------
+
+    def run_symbol_cycle(
+        self,
+        symbol: str,
+        market_context_map: Optional[dict] = None,
+    ) -> Dict[str, Any]:
+        """
+        High-level trigger for API/browser usage.
+
+        Delegates to RuntimeExecutor to construct
+        the proper ExecutionInput internally.
+        """
+
+        if not self._running:
+            raise RuntimeError("Engine is not started.")
+
+        # Let RuntimeExecutor handle construction internally
+        result = self._executor.run_symbol_cycle(
+            symbol=symbol,
+            market_context_map=market_context_map,
+        )
+
+        self._last_result = result
+        return result
+
+    # --------------------------------------------------
+    # Snapshot
+    # --------------------------------------------------
 
     def get_last_result(self) -> Optional[Dict[str, Any]]:
         return self._last_result
