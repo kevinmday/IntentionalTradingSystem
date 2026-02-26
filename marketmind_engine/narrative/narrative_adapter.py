@@ -3,21 +3,20 @@ from .rss.rss_fetcher import RSSFetcher
 from .rss.narrative_buffer import NarrativeBuffer
 from .rss.rss_worker import RSSWorker
 
+from marketmind_engine.narrative.projection.symbol_extractor import (
+    SymbolExtractor,
+)
+from marketmind_engine.narrative.projection.projection_event import (
+    ProjectionEvent,
+)
+
 
 class NarrativeAdapter:
     """
     Deterministic narrative shock adapter.
 
-    Engine-safe:
-    - No background threads required
-    - No network calls required
-    - Replay-safe
-    - Fully injectable for testing
-
-    Shock model:
-    - 0.0 = no activity
-    - 0.5 = moderate burst
-    - 1.0 = extreme headline intensity
+    Engine-safe.
+    Projection contract locked.
     """
 
     def __init__(self):
@@ -26,38 +25,65 @@ class NarrativeAdapter:
         self.buffer = NarrativeBuffer()
         self.worker = RSSWorker(self.registry, self.fetcher, self.buffer)
 
+        self.extractor = SymbolExtractor()
+
+        self._projection_events = []
+        self._engine_time_counter = 0  # deterministic local counter
+
     # -------------------------------------------------
-    # Deterministic Injection (Replay / Testing Mode)
+    # Deterministic Injection
     # -------------------------------------------------
 
     def inject_headlines(self, headlines):
-        """
-        Deterministically inject headlines into buffer.
 
-        Used for:
-        - Regime testing
-        - Replay mode
-        - Unit tests
-        """
         if headlines is None:
             headlines = []
 
         self.buffer.update(list(headlines))
+        self._update_projection()
+
+    # -------------------------------------------------
+    # Projection (STRUCTURED CONTRACT)
+    # -------------------------------------------------
+
+    def _update_projection(self):
+
+        headlines = self.buffer.snapshot()
+
+        events = []
+        symbols = set()
+
+        for item in headlines:
+            title = item.get("title", "")
+            extracted = self.extractor.extract(title)
+
+            for symbol in extracted:
+                symbols.add(symbol)
+
+        # Deterministic event creation
+        for symbol in sorted(symbols):
+            self._engine_time_counter += 1
+
+            events.append(
+                ProjectionEvent(
+                    symbol=symbol,
+                    engine_time=self._engine_time_counter,
+                    source="rss",
+                    sentiment=0.0,  # v1 neutral
+                    weight=1.0,     # v1 unit weight
+                )
+            )
+
+        self._projection_events = events
+
+    def get_projection_events(self):
+        return list(self._projection_events)
 
     # -------------------------------------------------
     # Shock Calculation
     # -------------------------------------------------
 
     def compute_narrative_shock(self) -> float:
-        """
-        Compute normalized headline shock.
-
-        Current model:
-        shock = headline_count / 100
-        capped at 1.0
-
-        This keeps the signal bounded and stable.
-        """
 
         headlines = self.buffer.snapshot()
 
@@ -65,7 +91,6 @@ class NarrativeAdapter:
             return 0.0
 
         volume = len(headlines)
-
         shock = volume / 100.0
 
         return min(shock, 1.0)

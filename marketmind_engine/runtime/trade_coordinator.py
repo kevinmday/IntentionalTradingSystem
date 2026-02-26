@@ -9,52 +9,69 @@ from marketmind_engine.agents.lifecycle_manager import AgentLifecycleManager
 from marketmind_engine.agents.agent_signal import AgentSignal
 from marketmind_engine.execution.position_snapshot import PositionSnapshot
 
+from marketmind_engine.narrative.narrative_adapter import NarrativeAdapter
+
 
 class TradeCoordinator:
     """
-    Phase 12.3 — Lifecycle Integrated
-
-    Bridges:
-        Orchestrator
-        AgentLifecycleManager (exit authority)
-        ExecutionEngine (entry authority)
+    Phase 13 — Projection Integrated (Controlled)
 
     Authority hierarchy:
         EXIT > ENTRY
 
-    Deterministic.
-    No hidden loops.
-    No capital mutation here.
+    Projection feeds attention only.
     """
 
     def __init__(
         self,
         orchestrator: IntradayOrchestrator,
         execution_engine: ExecutionEngine,
+        narrative_adapter: Optional[NarrativeAdapter] = None,
     ):
         self._orchestrator = orchestrator
         self._execution_engine = execution_engine
         self._lifecycle_manager = AgentLifecycleManager()
+
+        # Optional narrative injection
+        self._narrative_adapter = narrative_adapter
+
+    # --------------------------------------------------
+    # PROJECTION ROUTING (ATTENTION ONLY)
+    # --------------------------------------------------
+
+    def _route_projection_events(self):
+
+        if not self._narrative_adapter:
+            return
+
+        events = self._narrative_adapter.get_projection_events()
+
+        for event in events:
+            self._lifecycle_manager.route_rss_event(
+                {
+                    "symbol": event.symbol,
+                    "engine_time": event.engine_time,
+                    "source": event.source,
+                    "sentiment": event.sentiment,
+                }
+            )
+
+    # --------------------------------------------------
+    # EXIT AUTHORITY
+    # --------------------------------------------------
 
     def _resolve_exit_intent(
         self,
         position_snapshot: PositionSnapshot,
         market_context_map: dict,
     ) -> Optional[OrderIntent]:
-        """
-        Evaluate all position agents.
-        If any EXIT signal occurs, return SELL OrderIntent.
-        EXIT authority overrides entry.
-        """
 
-        # Sync lifecycle agents with current portfolio
         self._lifecycle_manager.sync_with_portfolio(position_snapshot)
 
         signals: List[AgentSignal] = self._lifecycle_manager.evaluate_all(
             market_context_map
         )
 
-        # First EXIT wins (deterministic order)
         for signal in signals:
             if signal.action == "EXIT":
                 position = position_snapshot.positions.get(signal.symbol)
@@ -72,19 +89,15 @@ class TradeCoordinator:
 
         return None
 
+    # --------------------------------------------------
+    # MAIN RUN LOOP
+    # --------------------------------------------------
+
     def run(
         self,
         execution_input: ExecutionInput,
         market_context_map: Optional[dict] = None,
     ) -> dict:
-        """
-        Single deterministic evaluation cycle.
-
-        Order of operations:
-            1. Regime authority
-            2. Exit authority (PositionAgents)
-            3. Entry authority (ExecutionEngine)
-        """
 
         # --------------------------------------------------
         # 1. Regime Authority
@@ -104,7 +117,13 @@ class TradeCoordinator:
             )
 
         # --------------------------------------------------
-        # 2. EXIT Authority (Quant-driven)
+        # 2. Projection Routing (Narrative → Attention)
+        # --------------------------------------------------
+
+        self._route_projection_events()
+
+        # --------------------------------------------------
+        # 3. EXIT Authority
         # --------------------------------------------------
 
         exit_intent = None
@@ -122,7 +141,7 @@ class TradeCoordinator:
             }
 
         # --------------------------------------------------
-        # 3. ENTRY Authority (Narrative-driven)
+        # 4. ENTRY Authority
         # --------------------------------------------------
 
         entry_intent: Optional[OrderIntent] = self._execution_engine.evaluate(
