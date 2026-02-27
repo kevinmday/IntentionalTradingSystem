@@ -1,18 +1,21 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
-import inspect
+from typing import Optional
 
 from marketmind_engine.runtime.build_engine import build_engine
-from marketmind_engine.execution.execution_input import ExecutionInput
-
+from marketmind_engine.api.models import (
+    StartResponse,
+    StopResponse,
+    EngineStatus,
+    RunDecisionResult,
+    EngineStateSnapshot,
+)
 
 # ------------------------------------------------------------------
 # Authoritative Engine Bootstrap
 # ------------------------------------------------------------------
 
 engine_controller = build_engine()
-
 
 # ------------------------------------------------------------------
 # FastAPI App
@@ -22,76 +25,105 @@ app = FastAPI(title="MarketMind Engine API")
 
 
 class RunRequest(BaseModel):
-    symbol: Optional[str] = None
+    symbol: Optional[str] = "TEST"
 
 
 # ------------------------------------------------------------------
 # Engine Controls
 # ------------------------------------------------------------------
 
-@app.post("/engine/start")
+@app.post("/engine/start", response_model=StartResponse)
 def start_engine():
     engine_controller.start()
     return {"status": "started"}
 
 
-@app.post("/engine/stop")
+@app.post("/engine/stop", response_model=StopResponse)
 def stop_engine():
     engine_controller.stop()
     return {"status": "stopped"}
 
 
-@app.get("/engine/status")
+@app.get("/engine/status", response_model=EngineStatus)
 def engine_status():
     return {
         "running": engine_controller.is_running(),
+        "regime": None,
+        "engine_time": None,
+        "last_cycle_timestamp": None,
     }
 
 
 # ------------------------------------------------------------------
-# Manual Cycle Trigger
+# ACTION ENDPOINT (Decision Only)
 # ------------------------------------------------------------------
 
-@app.post("/engine/run")
+@app.post("/engine/run", response_model=RunDecisionResult)
 def run_engine(req: RunRequest):
 
     if not engine_controller.is_running():
-        return {"error": "Engine is not started."}
+        return {
+            "decision": "NO_ACTION",
+            "engine_time": -1,
+            "symbol": req.symbol,
+            "reason": "Engine is not started.",
+        }
 
     try:
-        # Inspect ExecutionInput signature dynamically
-        sig = inspect.signature(ExecutionInput)
-        params = sig.parameters
-
-        # Build kwargs dynamically based on actual constructor
-        kwargs: Dict[str, Any] = {}
-
-        if "symbol" in params:
-            kwargs["symbol"] = req.symbol or "TEST"
-
-        # Add additional safe defaults if needed
-        if "timestamp" in params:
-            kwargs["timestamp"] = None
-
-        execution_input = ExecutionInput(**kwargs)
-
-        result = engine_controller.run_once(execution_input)
+        result = engine_controller.run_symbol_cycle(req.symbol)
 
         return {
-            "success": True,
-            "input": kwargs,
-            "result": result,
+            "decision": result.get("decision", "UNKNOWN"),
+            "engine_time": result.get("engine_time", 0),
+            "symbol": req.symbol,
+            "reason": result.get("reason"),
         }
 
     except Exception as e:
         return {
-            "success": False,
-            "error": str(e),
+            "decision": "ERROR",
+            "engine_time": -1,
+            "symbol": req.symbol,
+            "reason": str(e),
         }
 
 
 # ------------------------------------------------------------------
-# Last Result Snapshot
+# TELEMETRY ENDPOINT (Full Engine State)
+# ------------------------------------------------------------------
+
+@app.get("/engine/state", response_model=EngineStateSnapshot)
+def engine_state():
+
+    last = engine_controller.get_last_result()
+
+    if not last:
+        return {
+            "running": engine_controller.is_running(),
+            "regime": {
+                "timestamp": 0.0,
+                "regime": "unknown",
+                "execution": {},
+                "composite_score": 0.0,
+                "recovery_modifier": 1.0,
+                "domain_modifier": 1.0,
+            },
+            "engine_time": 0,
+            "last_cycle_timestamp": None,
+        }
+
+    regime_snapshot = last.get("regime", {})
+
+    return {
+        "running": engine_controller.is_running(),
+        "regime": regime_snapshot,
+        "engine_time": last.get("engine_time", 0),
+        "last_cycle_timestamp": regime_snapshot.get("timestamp"),
+    }
+
+
+# ------------------------------------------------------------------
+# Raw Debug Snapshot
 # ------------------------------------------------------------------
 
 @app.get("/engine/last")

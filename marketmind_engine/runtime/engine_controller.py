@@ -2,6 +2,7 @@ from typing import Optional, Dict, Any
 
 from marketmind_engine.runtime.runtime_executor import RuntimeExecutor
 from marketmind_engine.execution.execution_input import ExecutionInput
+from marketmind_engine.runtime.execution_input_factory import ExecutionInputFactory
 
 
 class EngineController:
@@ -10,6 +11,7 @@ class EngineController:
 
     Responsibilities:
         • Hold RuntimeExecutor
+        • Hold ExecutionInputFactory
         • Execute one cycle on demand
         • Store last result
         • Expose engine state
@@ -20,8 +22,13 @@ class EngineController:
     No background loop.
     """
 
-    def __init__(self, runtime_executor: RuntimeExecutor):
+    def __init__(
+        self,
+        runtime_executor: RuntimeExecutor,
+        execution_input_factory: ExecutionInputFactory,
+    ):
         self._executor = runtime_executor
+        self._factory = execution_input_factory
         self._last_result: Optional[Dict[str, Any]] = None
         self._running: bool = False
 
@@ -71,16 +78,17 @@ class EngineController:
         """
         High-level trigger for API/browser usage.
 
-        Delegates to RuntimeExecutor to construct
-        the proper ExecutionInput internally.
+        Constructs ExecutionInput via factory,
+        then delegates to RuntimeExecutor.
         """
 
         if not self._running:
             raise RuntimeError("Engine is not started.")
 
-        # Let RuntimeExecutor handle construction internally
-        result = self._executor.run_symbol_cycle(
-            symbol=symbol,
+        execution_input = self._factory.build_for_symbol(symbol)
+
+        result = self._executor.run_cycle(
+            execution_input,
             market_context_map=market_context_map,
         )
 

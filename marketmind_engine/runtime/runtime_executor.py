@@ -14,7 +14,8 @@ class RuntimeExecutor:
     Responsibilities:
         • Invoke TradeCoordinator
         • Submit OrderIntent via ExecutionService
-        • Return intent + receipt
+        • Derive explicit decision
+        • Return structured result
 
     No intelligence.
     No mutation.
@@ -43,10 +44,14 @@ class RuntimeExecutor:
         order_intent: Optional[OrderIntent] = result.get("order_intent")
         receipt: Optional[ExecutionReceipt] = None
 
+        decision = "NO_ACTION"
+
         if order_intent:
+            decision = f"ALLOW_{order_intent.side.upper()}"
             receipt = self._execution_service.submit_intent(order_intent)
 
         return {
+            "decision": decision,
             "regime": result.get("regime"),
             "authority": result.get("authority"),
             "order_intent": order_intent,

@@ -61,22 +61,14 @@ def next_tick() -> int:
 # -------------------------------------------------------------------
 # Module Dispatch Table (REPO-LOCAL ONLY)
 # -------------------------------------------------------------------
-#
-# All paths are relative to REPO_ROOT.
-# These MUST exist inside C:\dev\IntentionalTradingSystem
-#
-# Add modules here intentionally.
-# Do NOT reference MarketMindAI legacy tree.
-# -------------------------------------------------------------------
 
 MODULES = {
 
-    # Runtime UI (Phase 11+)
-    "runtime": REPO_ROOT / "runtime" / "app.py",
+    # Deterministic Engine Runtime
+    "runtime": REPO_ROOT / "marketmind_engine" / "runtime" / "runtime_executor.py",
 
-    # Future: add new modules explicitly here
-    # Example:
-    # "agents": REPO_ROOT / "marketmind_engine" / "agents" / "main.py",
+    # Flask UI (optional launch target)
+    "flask": REPO_ROOT / "marketmind_engine" / "app" / "flask_app.py",
 }
 
 
@@ -85,11 +77,6 @@ MODULES = {
 # -------------------------------------------------------------------
 
 def validate_broker_requirements(module_name: str):
-    """
-    Validate broker credentials only when required.
-    Currently no module requires it.
-    """
-    # Placeholder for future broker-gated modules
     return
 
 
@@ -98,10 +85,6 @@ def validate_broker_requirements(module_name: str):
 # -------------------------------------------------------------------
 
 def _validate_repo_local(path: Path):
-    """
-    Ensure the target file lives inside this repository.
-    Prevents shadow/legacy execution.
-    """
     try:
         path.resolve().relative_to(REPO_ROOT.resolve())
     except Exception:
@@ -115,14 +98,6 @@ def _validate_repo_local(path: Path):
 # -------------------------------------------------------------------
 
 def run_module(name: str):
-    """
-    Launch a registered module in a subprocess.
-
-    This keeps:
-    - Engine isolated
-    - Flask isolated
-    - Import side-effects contained
-    """
 
     if name not in MODULES:
         print(f"[ENGINE] Unknown module '{name}'.")
