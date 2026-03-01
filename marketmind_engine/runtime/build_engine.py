@@ -1,5 +1,5 @@
 """
-Authoritative Engine Assembly Harness
+Authoritative Engine Assembly Harness (Injection-Capable)
 
 Builds full runtime stack:
 
@@ -13,6 +13,8 @@ MacroSource
 → EngineController
 """
 
+from typing import Optional
+
 from marketmind_engine.runtime.engine_controller import EngineController
 from marketmind_engine.runtime.runtime_executor import RuntimeExecutor
 from marketmind_engine.runtime.trade_coordinator import TradeCoordinator
@@ -25,30 +27,37 @@ from marketmind_engine.orchestrator.intraday_orchestrator import IntradayOrchest
 
 from marketmind_engine.regime.macro_sources.injected_source import InjectedMacroSource
 from marketmind_engine.broker.paper_adapter import PaperBrokerAdapter
+from marketmind_engine.policy.policy_types import PolicyAction
 
 
 # ----------------------------------------------------------------------
-# Minimal Stub Services (Deterministic Activation Mode)
+# Default Stub Services (Used If Not Injected)
 # ----------------------------------------------------------------------
 
 class StubCapitalService:
     def snapshot(self):
-        return {}
+        return type("CapitalSnapshot", (), {
+            "account_equity": 100_000,
+            "buying_power": 100_000,
+            "max_risk_per_trade": 0.01,
+        })()
 
 
 class StubPositionService:
     def snapshot(self, symbol: str):
-        return None
+        return type("PositionSnapshot", (), {
+            "positions": {}
+        })()
 
 
 class StubPriceService:
     def get_price(self, symbol: str) -> float:
-        return 100.0  # deterministic placeholder
+        return 100.0
 
 
 class StubClock:
     def now(self) -> int:
-        return 0  # deterministic activation time
+        return 0
 
 
 class StubRegimeService:
@@ -58,37 +67,26 @@ class StubRegimeService:
 
 class StubPolicyEngine:
     def evaluate(self, market_state):
-        """
-        Deterministic neutral policy result.
-
-        Provides required attributes expected downstream.
-        """
-
-        return type(
-            "PolicyResult",
-            (),
-            {
-                "action": "HOLD",
-                "confidence": 0.0,
-                "reason": "Stub neutral policy",
-            },
-        )()
+        return type("PolicyResult", (), {
+            "action": PolicyAction.HOLD,
+            "confidence": 0.0,
+            "reason": "Stub neutral policy",
+        })()
 
 
 # ----------------------------------------------------------------------
-# Build Engine
+# Build Engine (Injection-Capable)
 # ----------------------------------------------------------------------
 
-def build_engine() -> EngineController:
-    """
-    Deterministic activation build.
-
-    Uses injected neutral macro regime.
-    """
-
-    # --------------------------------------------------
-    # 1. Neutral Macro Source (Activation Mode)
-    # --------------------------------------------------
+def build_engine(
+    clock=None,
+    price_service=None,
+    capital_service=None,
+    position_service=None,
+    regime_service=None,
+    policy_engine=None,
+    narrative_adapter=None,
+) -> EngineController:
 
     macro_source = InjectedMacroSource(
         {
@@ -99,10 +97,6 @@ def build_engine() -> EngineController:
             "structural_confirmation": 0.0,
         }
     )
-
-    # --------------------------------------------------
-    # 2. Core Engine Components
-    # --------------------------------------------------
 
     execution_engine = ExecutionEngine()
 
@@ -116,12 +110,8 @@ def build_engine() -> EngineController:
     coordinator = TradeCoordinator(
         orchestrator=orchestrator,
         execution_engine=execution_engine,
-        narrative_adapter=None,
+        narrative_adapter=narrative_adapter,
     )
-
-    # --------------------------------------------------
-    # 3. Paper Broker Injection
-    # --------------------------------------------------
 
     broker = PaperBrokerAdapter()
     execution_service = ExecutionService(broker=broker)
@@ -131,16 +121,13 @@ def build_engine() -> EngineController:
         execution_service=execution_service,
     )
 
-    # --------------------------------------------------
-    # 4. Snapshot Services
-    # --------------------------------------------------
-
-    capital_service = StubCapitalService()
-    position_service = StubPositionService()
-    price_service = StubPriceService()
-    clock = StubClock()
-    regime_service = StubRegimeService()
-    policy_engine = StubPolicyEngine()
+    # Inject or default services
+    clock = clock or StubClock()
+    price_service = price_service or StubPriceService()
+    capital_service = capital_service or StubCapitalService()
+    position_service = position_service or StubPositionService()
+    regime_service = regime_service or StubRegimeService()
+    policy_engine = policy_engine or StubPolicyEngine()
 
     execution_input_factory = ExecutionInputFactory(
         regime_service=regime_service,
@@ -150,10 +137,6 @@ def build_engine() -> EngineController:
         price_service=price_service,
         clock=clock,
     )
-
-    # --------------------------------------------------
-    # 5. Engine Controller
-    # --------------------------------------------------
 
     engine_controller = EngineController(
         runtime_executor=runtime_executor,
