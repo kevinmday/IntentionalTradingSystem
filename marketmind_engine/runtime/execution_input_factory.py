@@ -29,6 +29,9 @@ class ExecutionInputFactory:
         self.price_service = price_service
         self.clock = clock
 
+        # 🔹 Deterministic price memory (per symbol)
+        self._last_price_by_symbol = {}
+
     # -------------------------------------------------------------
     # Public Entry
     # -------------------------------------------------------------
@@ -80,7 +83,18 @@ class ExecutionInputFactory:
         current_price = self.price_service.get_price(symbol)
         regime_state = self.regime_service.current_state()
 
-        # Placeholder values — replace with real derivations
+        # 🔹 Compute deterministic price delta
+        previous_price = self._last_price_by_symbol.get(symbol)
+
+        if previous_price is None:
+            price_delta = 0.0
+        else:
+            price_delta = current_price - previous_price
+
+        # Update memory for next cycle
+        self._last_price_by_symbol[symbol] = current_price
+
+        # Placeholder values — narrative wiring comes later
         fils = 0.0
         ucip = 0.0
         ttcf = 0.0
@@ -98,6 +112,6 @@ class ExecutionInputFactory:
             timestamp_utc=None,
             engine_time=engine_time,
             ignition_time=0,
-            price_delta=0.0,
+            price_delta=price_delta,
             volume_ratio=1.0,
         )
