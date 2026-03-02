@@ -85,6 +85,9 @@ class EngineController:
         if not self._running:
             raise RuntimeError("Engine is not started.")
 
+        # Advance deterministic runtime clock (1 second per manual cycle)
+        self._factory.clock.advance(1)
+
         execution_input = self._factory.build_for_symbol(symbol)
 
         result = self._executor.run_cycle(

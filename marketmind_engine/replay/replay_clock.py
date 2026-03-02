@@ -1,14 +1,10 @@
-class ReplayClock:
+from marketmind_engine.core.engine_clock import EngineClock
+
+
+class ReplayClock(EngineClock):
     """
-    Deterministic replay clock.
-    Advances in seconds.
+    Replay clock is simply a specialized EngineClock.
+
+    No additional behavior required.
     """
-
-    def __init__(self, start_time: int = 0):
-        self._time = start_time
-
-    def now(self) -> int:
-        return self._time
-
-    def advance(self, seconds: int) -> None:
-        self._time += seconds
+    pass

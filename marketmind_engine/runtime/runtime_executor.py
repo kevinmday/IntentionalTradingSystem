@@ -56,4 +56,5 @@ class RuntimeExecutor:
             "authority": result.get("authority"),
             "order_intent": order_intent,
             "execution_receipt": receipt,
+            "engine_time": execution_input.engine_time,  # 🔹 Engine owns monotonic time
         }

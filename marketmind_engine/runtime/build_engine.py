@@ -29,6 +29,8 @@ from marketmind_engine.regime.macro_sources.injected_source import InjectedMacro
 from marketmind_engine.broker.paper_adapter import PaperBrokerAdapter
 from marketmind_engine.policy.policy_types import PolicyAction
 
+from marketmind_engine.core.engine_clock import EngineClock
+
 
 # ----------------------------------------------------------------------
 # Default Stub Services (Used If Not Injected)
@@ -53,11 +55,6 @@ class StubPositionService:
 class StubPriceService:
     def get_price(self, symbol: str) -> float:
         return 100.0
-
-
-class StubClock:
-    def now(self) -> int:
-        return 0
 
 
 class StubRegimeService:
@@ -122,7 +119,7 @@ def build_engine(
     )
 
     # Inject or default services
-    clock = clock or StubClock()
+    clock = clock or EngineClock()
     price_service = price_service or StubPriceService()
     capital_service = capital_service or StubCapitalService()
     position_service = position_service or StubPositionService()
