@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import RegimeIndicator from "./components/RegimeIndicator";
 import FlattenFlagIndicator from "./components/FlattenFlagIndicator";
 import EntryBlockIndicator from "./components/EntryBlockIndicator";
+import PropagationPanel from "./components/PropagationPanel";
 import { useRegimePolling } from "./hooks/useRegimePolling";
 
 type TransitionEvent = {
@@ -24,9 +25,9 @@ function App() {
 
   const systemic = regime === "systemic";
 
-  // ---------------------------------------------
-  // Phase 11.3B — Duration Counter
-  // ---------------------------------------------
+  // ===============================
+  // Duration Counter
+  // ===============================
 
   const [regimeStartTime, setRegimeStartTime] = useState<number | null>(null);
   const [previousRegime, setPreviousRegime] = useState<string | null>(null);
@@ -60,9 +61,9 @@ function App() {
     return `${hrs}:${mins}:${secs}`;
   };
 
-  // ---------------------------------------------
-  // Phase 11.4 — Transition Log
-  // ---------------------------------------------
+  // ===============================
+  // Transition Log
+  // ===============================
 
   const [transitionLog, setTransitionLog] = useState<TransitionEvent[]>([]);
 
@@ -88,100 +89,100 @@ function App() {
         block,
       };
 
-      return [newEvent, ...prev].slice(0, 20); // cap at 20 entries
+      return [newEvent, ...prev].slice(0, 20);
     });
   }, [regime, flatten, block]);
-
-  // ---------------------------------------------
-  // Diagnostics
-  // ---------------------------------------------
 
   const diagnostics = snapshot?.diagnostics;
 
   return (
-    <div
-      className={`min-h-screen text-white font-mono ${
-        systemic ? "bg-red-950" : "bg-black"
-      }`}
-    >
-      {/* STATUS STRIP */}
-      <div className="border-b border-gray-800 px-4 py-2 text-sm flex justify-between">
-        <div className="flex gap-6">
-          <span>REGIME: {regime.toUpperCase()}</span>
-          <span>FLATTEN: {flatten ? "YES" : "NO"}</span>
-          <span>BLOCK: {block ? "YES" : "NO"}</span>
-        </div>
-        <div>UPDATED: {updated}</div>
-      </div>
+    <div className="flex w-full min-h-screen text-white font-mono bg-black">
 
-      {/* DURATION */}
-      <div className="px-6 py-4 text-xs text-gray-400">
-        TIME IN CURRENT STATE: {getDuration()}
-      </div>
+      {/* ================= LEFT PANEL ================= */}
+      <div
+        className={`w-1/2 min-h-screen border-r border-gray-800 ${
+          systemic ? "bg-red-950" : "bg-black"
+        }`}
+      >
+        <div className="h-full overflow-auto">
 
-      {/* PRIMARY INDICATORS */}
-      <div className="px-6 py-4 space-y-4">
-        <RegimeIndicator regime={regime} />
-        <FlattenFlagIndicator flatten={flatten} />
-        <EntryBlockIndicator block={block} />
-      </div>
-
-      {/* --------------------------------------------- */}
-      {/* DIAGNOSTICS PANEL — ALWAYS VISIBLE */}
-      {/* --------------------------------------------- */}
-
-      <div className="px-6 py-6 border-t border-gray-800 text-xs space-y-4">
-
-        <div className="text-gray-400 tracking-widest">
-          DIAGNOSTICS
-        </div>
-
-        {diagnostics && (
-          <div className="grid grid-cols-2 gap-4">
-
-            <div>
-              <div>Composite Score: {diagnostics.composite_score?.toFixed(3)}</div>
-              <div>Risk Mode: {diagnostics.risk_mode}</div>
-              <div>Stressed Threshold: {diagnostics.stressed_threshold}</div>
-              <div>Flatten All: {diagnostics.flatten_all ? "YES" : "NO"}</div>
-              <div>Block New Entries: {diagnostics.block_new_entries ? "YES" : "NO"}</div>
+          {/* STATUS STRIP */}
+          <div className="border-b border-gray-800 px-4 py-2 text-sm flex justify-between">
+            <div className="flex gap-6">
+              <span>REGIME: {regime.toUpperCase()}</span>
+              <span>FLATTEN: {flatten ? "YES" : "NO"}</span>
+              <span>BLOCK: {block ? "YES" : "NO"}</span>
             </div>
-
-            <div>
-              <div>Drawdown Velocity: {diagnostics.macro_inputs?.drawdown_velocity}</div>
-              <div>Liquidity Stress: {diagnostics.macro_inputs?.liquidity_stress}</div>
-              <div>Correlation Spike: {diagnostics.macro_inputs?.correlation_spike}</div>
-              <div>Narrative Shock: {diagnostics.macro_inputs?.narrative_shock}</div>
-              <div>Structural Confirmation: {diagnostics.macro_inputs?.structural_confirmation}</div>
-            </div>
-
+            <div>UPDATED: {updated}</div>
           </div>
-        )}
 
-      </div>
+          {/* DURATION */}
+          <div className="px-6 py-4 text-xs text-gray-400">
+            TIME IN CURRENT STATE: {getDuration()}
+          </div>
 
-      {/* --------------------------------------------- */}
-      {/* TRANSITION LOG */}
-      {/* --------------------------------------------- */}
+          {/* PRIMARY INDICATORS */}
+          <div className="px-6 py-4 space-y-4">
+            <RegimeIndicator regime={regime} />
+            <FlattenFlagIndicator flatten={flatten} />
+            <EntryBlockIndicator block={block} />
+          </div>
 
-      <div className="px-6 py-6 border-t border-gray-800 text-xs space-y-2">
-
-        <div className="text-gray-400 tracking-widest">
-          TRANSITION LOG
-        </div>
-
-        <div className="space-y-1">
-          {transitionLog.map((entry, index) => (
-            <div key={index} className="flex justify-between text-gray-300">
-              <span>{entry.time}</span>
-              <span>{entry.regime.toUpperCase()}</span>
-              <span>F:{entry.flatten ? "1" : "0"}</span>
-              <span>B:{entry.block ? "1" : "0"}</span>
+          {/* DIAGNOSTICS */}
+          <div className="px-6 py-6 border-t border-gray-800 text-xs space-y-4">
+            <div className="text-gray-400 tracking-widest">
+              DIAGNOSTICS
             </div>
-          ))}
-        </div>
 
+            {diagnostics && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div>Composite Score: {diagnostics.composite_score?.toFixed(3)}</div>
+                  <div>Risk Mode: {diagnostics.risk_mode}</div>
+                  <div>Stressed Threshold: {diagnostics.stressed_threshold}</div>
+                  <div>Flatten All: {diagnostics.flatten_all ? "YES" : "NO"}</div>
+                  <div>Block New Entries: {diagnostics.block_new_entries ? "YES" : "NO"}</div>
+                </div>
+
+                <div>
+                  <div>Drawdown Velocity: {diagnostics.macro_inputs?.drawdown_velocity}</div>
+                  <div>Liquidity Stress: {diagnostics.macro_inputs?.liquidity_stress}</div>
+                  <div>Correlation Spike: {diagnostics.macro_inputs?.correlation_spike}</div>
+                  <div>Narrative Shock: {diagnostics.macro_inputs?.narrative_shock}</div>
+                  <div>Structural Confirmation: {diagnostics.macro_inputs?.structural_confirmation}</div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* TRANSITION LOG */}
+          <div className="px-6 py-6 border-t border-gray-800 text-xs space-y-2">
+            <div className="text-gray-400 tracking-widest">
+              TRANSITION LOG
+            </div>
+
+            <div className="space-y-1">
+              {transitionLog.map((entry, index) => (
+                <div key={index} className="flex justify-between text-gray-300">
+                  <span>{entry.time}</span>
+                  <span>{entry.regime.toUpperCase()}</span>
+                  <span>F:{entry.flatten ? "1" : "0"}</span>
+                  <span>B:{entry.block ? "1" : "0"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
       </div>
+
+      {/* ================= RIGHT PANEL ================= */}
+      <div className="w-1/2 min-h-screen bg-black">
+        <div className="h-full overflow-auto">
+          <PropagationPanel />
+        </div>
+      </div>
+
     </div>
   );
 }
