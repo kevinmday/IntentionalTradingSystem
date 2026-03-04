@@ -1,4 +1,4 @@
-﻿from .rss.feed_registry import FeedRegistry
+from .rss.feed_registry import FeedRegistry
 from .rss.rss_fetcher import RSSFetcher
 from .rss.narrative_buffer import NarrativeBuffer
 from .rss.rss_worker import RSSWorker

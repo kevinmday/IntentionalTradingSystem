@@ -22,6 +22,7 @@ from dataclasses import asdict
 
 from marketmind_engine.core.clock import ENGINE_CLOCK
 from marketmind_engine.data.registry import get_provider
+from marketmind_engine.intelligence.propagation_engine import PropagationEngine
 
 # =========================================================
 # Decision + Policy
@@ -207,7 +208,7 @@ def decide(signal: dict) -> dict:
 
 
 # =========================================================
-# REAL STRUCTURAL PROPAGATION AGGREGATION
+# NEW STRUCTURAL PROPAGATION ENGINE
 # =========================================================
 
 def get_propagation_snapshot() -> dict:
@@ -215,75 +216,27 @@ def get_propagation_snapshot() -> dict:
     clock = ENGINE_CLOCK.now()
     provider = get_provider()
 
-    universe = [
-        "SPY",
-        "QQQ",
-        "IWM",
-        "XLF",
-        "XLE",
-        "XLV",
-        "SMH",
-    ]
+    # Temporary stub services until runtime wiring exists
+    class _StubController:
+        def get_open_positions(self):
+            return []
 
-    batch = provider.get_batch_data(universe)
+    class _StubRSS:
+        def get_evaluated_symbols(self):
+            return []
 
-    changes = []
-    sector_changes = []
-    prime_changes = []
-
-    for symbol in universe:
-
-        data = batch.get(symbol)
-
-        if not data:
-            continue
-
-        change = data.get("percent_change")
-
-        if change is None:
-            continue
-
-        try:
-            change = float(change)
-        except Exception:
-            continue
-
-        changes.append(change)
-
-        if symbol in ["QQQ", "SMH"]:
-            prime_changes.append(change)
-
-        if symbol not in ["SPY"]:
-            sector_changes.append(change)
-
-    breadth = sum(1 for c in changes if c > 0)
-
-    sector_avg = (
-        round(sum(sector_changes) / len(sector_changes), 3)
-        if sector_changes else 0.0
+    engine = PropagationEngine(
+        provider=provider,
+        engine_controller=_StubController(),
+        rss_service=_StubRSS(),
     )
 
-    prime_avg = (
-        round(sum(prime_changes) / len(prime_changes), 3)
-        if prime_changes else 0.0
-    )
-
-    etf_confirmation = prime_avg > 0 and sector_avg > 0
-
-    pullback_depth = 0.0
-    volume_delta = 0.0
+    snapshot = engine.snapshot()
 
     return {
         **clock,
-        "timestamp": datetime.utcnow().isoformat(),
-        "sector_avg": sector_avg,
-        "prime_avg": prime_avg,
-        "breadth": breadth,
-        "etf_confirmation": etf_confirmation,
-        "pullback_depth": pullback_depth,
-        "volume_delta": volume_delta,
+        **snapshot,
         "engine": "marketmind_engine",
-        "mode": "propagation_live",
         "data_source": provider.name,
     }
 

@@ -1,4 +1,3 @@
-@'
 class HistoricalNewsFeed:
     """
     Deterministic historical news feed.
@@ -25,4 +24,3 @@ class HistoricalNewsFeed:
                 break
 
         return released
-'@ | Set-Content marketmind_engine\replay\historical_news_feed.py

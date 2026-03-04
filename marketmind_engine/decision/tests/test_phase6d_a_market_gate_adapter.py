@@ -1,5 +1,5 @@
-﻿"""
-PHASE-6D-A CONTRACT TEST — MARKET GATE ADAPTER
+"""
+PHASE-6D-A CONTRACT TEST - MARKET GATE ADAPTER
 
 Ensures adapter wiring is deterministic and transparent.
 """

@@ -1,1 +1,1 @@
-﻿# RSS subsystem
+# RSS subsystem

@@ -1,5 +1,5 @@
-﻿"""
-PHASE-6D — MARKET GATE (STUB)
+"""
+PHASE-6D - MARKET GATE (STUB)
 
 Deterministic market gating logic.
 No execution, no capital, no side effects.

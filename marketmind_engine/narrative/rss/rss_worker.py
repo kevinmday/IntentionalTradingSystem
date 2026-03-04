@@ -1,4 +1,4 @@
-﻿import time
+import time
 from marketmind_engine.narrative.feed_aggregator import FeedAggregator
 
 

@@ -1,4 +1,4 @@
-﻿from marketmind_engine.config.feed_loader import load_feeds_by_type
+from marketmind_engine.config.feed_loader import load_feeds_by_type
 
 
 class FeedRegistry:

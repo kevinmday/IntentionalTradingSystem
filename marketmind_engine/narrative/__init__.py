@@ -1,1 +1,1 @@
-﻿# Narrative ingestion layer
+# Narrative ingestion layer

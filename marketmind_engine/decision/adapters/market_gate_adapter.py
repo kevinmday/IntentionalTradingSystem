@@ -1,5 +1,5 @@
-﻿"""
-PHASE-6D-A — MARKET GATE ADAPTER (STUB)
+"""
+PHASE-6D-A - MARKET GATE ADAPTER (STUB)
 
 Purpose:
 - Isolate DecisionEngine from gate implementations
