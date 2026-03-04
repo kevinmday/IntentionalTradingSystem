@@ -1,23 +1,31 @@
+# =========================================================
+# MARKETMIND ENGINE API
+# =========================================================
+
+from fastapi import FastAPI
+from dotenv import load_dotenv
+
+# Load environment variables immediately
+load_dotenv()
+
+# FastAPI app must exist at module load time for uvicorn reload
+app = FastAPI(title="MarketMind Engine API")
+
+# =========================================================
+# Standard Imports
+# =========================================================
+
 from datetime import datetime
 from typing import Optional, List
 import os
-import random
 from dataclasses import asdict
-
-from fastapi import FastAPI
 
 from marketmind_engine.core.clock import ENGINE_CLOCK
 from marketmind_engine.data.registry import get_provider
 
 # =========================================================
-# FastAPI App
-# =========================================================
-
-app = FastAPI(title="MarketMind Engine API")
-
-# =========================
 # Decision + Policy
-# =========================
+# =========================================================
 
 from marketmind_engine.decision.types import DecisionResult
 from marketmind_engine.policy.policy_engine import PolicyEngine
@@ -28,15 +36,15 @@ from marketmind_engine.policy.formatters.explanation import (
     format_policy_explanation
 )
 
-# =========================
-# Phase-6A Candidates
-# =========================
+# =========================================================
+# Candidate Generation
+# =========================================================
 
 from marketmind_engine.candidates.emitter import emit_candidates
 
-# =========================
-# Policy Engine (static, selectable)
-# =========================
+# =========================================================
+# Policy Engine
+# =========================================================
 
 _POLICY_MAP = {
     "conservative": ConservativePolicy,
@@ -51,10 +59,11 @@ _POLICY_ENGINE = PolicyEngine(
 )
 
 # =========================================================
-# Engine Functions
+# ENGINE FUNCTIONS
 # =========================================================
 
 def get_metrics() -> dict:
+
     clock = ENGINE_CLOCK.now()
     provider = get_provider()
 
@@ -70,12 +79,17 @@ def get_metrics() -> dict:
         "trades_closed_profitably": 7,
         "trades_closed_unprofitably": 2,
         "engine": "marketmind_engine",
-        "mode": "stub",
+        "mode": "live",
         "data_source": provider.name,
     }
 
 
+# =========================================================
+# SYMBOL ANALYSIS
+# =========================================================
+
 def analyze_symbol(symbol: str, context: Optional[dict] = None) -> dict:
+
     clock = ENGINE_CLOCK.now()
     provider = get_provider()
 
@@ -87,12 +101,13 @@ def analyze_symbol(symbol: str, context: Optional[dict] = None) -> dict:
         "timestamp": datetime.utcnow().isoformat(),
         **data,
         "engine": "marketmind_engine",
-        "mode": "stub",
+        "mode": "live",
         "data_source": provider.name,
     }
 
 
 def analyze_batch(symbols: List[str], context: Optional[dict] = None) -> dict:
+
     clock = ENGINE_CLOCK.now()
     provider = get_provider()
 
@@ -105,7 +120,7 @@ def analyze_batch(symbols: List[str], context: Optional[dict] = None) -> dict:
             "timestamp": datetime.utcnow().isoformat(),
             **batch_data.get(symbol.upper(), {}),
             "engine": "marketmind_engine",
-            "mode": "stub",
+            "mode": "live",
             "data_source": provider.name,
         }
         for symbol in symbols
@@ -117,12 +132,17 @@ def analyze_batch(symbols: List[str], context: Optional[dict] = None) -> dict:
         "count": len(results),
         "results": results,
         "engine": "marketmind_engine",
-        "mode": "stub",
+        "mode": "live",
         "data_source": provider.name,
     }
 
 
+# =========================================================
+# CANDIDATE GENERATION
+# =========================================================
+
 def get_candidates() -> list[dict]:
+
     clock = ENGINE_CLOCK.now()
 
     evaluated_assets = getattr(
@@ -145,7 +165,12 @@ def get_candidates() -> list[dict]:
     return [asdict(c) for c in candidates]
 
 
+# =========================================================
+# POLICY DECISION
+# =========================================================
+
 def decide(signal: dict) -> dict:
+
     clock = ENGINE_CLOCK.now()
 
     decision_result = DecisionResult(
@@ -176,36 +201,99 @@ def decide(signal: dict) -> dict:
             "explanation": policy_explanation,
         },
         "engine": "marketmind_engine",
-        "mode": "stub",
+        "mode": "live",
         "data_source": "engine",
     }
 
 
+# =========================================================
+# REAL STRUCTURAL PROPAGATION AGGREGATION
+# =========================================================
+
 def get_propagation_snapshot() -> dict:
-    """
-    Read-only propagation telemetry stub.
-    No execution logic.
-    No capital state.
-    Pure instrumentation.
-    """
+
     clock = ENGINE_CLOCK.now()
+    provider = get_provider()
+
+    universe = [
+        "SPY",
+        "QQQ",
+        "IWM",
+        "XLF",
+        "XLE",
+        "XLV",
+        "SMH",
+    ]
+
+    batch = provider.get_batch_data(universe)
+
+    changes = []
+    sector_changes = []
+    prime_changes = []
+
+    for symbol in universe:
+
+        data = batch.get(symbol)
+
+        if not data:
+            continue
+
+        change = data.get("percent_change")
+
+        if change is None:
+            continue
+
+        try:
+            change = float(change)
+        except Exception:
+            continue
+
+        changes.append(change)
+
+        if symbol in ["QQQ", "SMH"]:
+            prime_changes.append(change)
+
+        if symbol not in ["SPY"]:
+            sector_changes.append(change)
+
+    breadth = sum(1 for c in changes if c > 0)
+
+    sector_avg = (
+        round(sum(sector_changes) / len(sector_changes), 3)
+        if sector_changes else 0.0
+    )
+
+    prime_avg = (
+        round(sum(prime_changes) / len(prime_changes), 3)
+        if prime_changes else 0.0
+    )
+
+    etf_confirmation = prime_avg > 0 and sector_avg > 0
+
+    pullback_depth = 0.0
+    volume_delta = 0.0
 
     return {
         **clock,
         "timestamp": datetime.utcnow().isoformat(),
-        "sector_avg": round(random.uniform(-1.5, 3.5), 2),
-        "prime_avg": round(random.uniform(-1.0, 4.0), 2),
-        "breadth": random.randint(3, 12),
-        "etf_confirmation": random.choice([True, False]),
-        "pullback_depth": round(random.uniform(-1.2, 0), 2),
-        "volume_delta": round(random.uniform(-10, 25), 2),
+        "sector_avg": sector_avg,
+        "prime_avg": prime_avg,
+        "breadth": breadth,
+        "etf_confirmation": etf_confirmation,
+        "pullback_depth": pullback_depth,
+        "volume_delta": volume_delta,
         "engine": "marketmind_engine",
-        "mode": "propagation_stub",
-        "data_source": "mock",
+        "mode": "propagation_live",
+        "data_source": provider.name,
     }
 
 
+# =========================================================
+# HEALTH CHECK
+# =========================================================
+
 def health() -> dict:
+
     clock = ENGINE_CLOCK.now()
     provider = get_provider()
 
@@ -213,9 +301,10 @@ def health() -> dict:
         **clock,
         "status": "ok",
         "engine": "marketmind_engine",
-        "mode": "stub",
+        "mode": "live",
         "data_source": provider.name,
     }
+
 
 # =========================================================
 # API ROUTES

@@ -11,11 +11,24 @@ from marketmind_engine.api.models import (
     EngineStateSnapshot,
 )
 
+from marketmind_engine.intelligence.propagation_engine import PropagationEngine
+
 # ------------------------------------------------------------------
 # Authoritative Engine Bootstrap
 # ------------------------------------------------------------------
 
 engine_controller = build_engine()
+
+# IMPORTANT:
+# Adjust these two lines ONLY if attribute names differ in your build_engine() stack.
+provider = engine_controller.provider
+rss_service = engine_controller.rss_service
+
+propagation_engine = PropagationEngine(
+    provider=provider,
+    engine_controller=engine_controller,
+    rss_service=rss_service,
+)
 
 # ------------------------------------------------------------------
 # FastAPI App
@@ -120,6 +133,20 @@ def engine_state():
         "engine_time": last.get("engine_time", 0),
         "last_cycle_timestamp": regime_snapshot.get("timestamp"),
     }
+
+
+# ------------------------------------------------------------------
+# PROPAGATION OBSERVATORY (NEW)
+# ------------------------------------------------------------------
+
+@app.get("/propagation_snapshot")
+def propagation_snapshot():
+    """
+    Multi-layer propagation intelligence snapshot.
+    Pure observer layer.
+    No mutation.
+    """
+    return propagation_engine.snapshot()
 
 
 # ------------------------------------------------------------------
