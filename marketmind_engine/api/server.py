@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 import threading
@@ -45,6 +46,22 @@ propagation_engine = PropagationEngine(
 # ------------------------------------------------------------------
 
 app = FastAPI(title="MarketMind Engine API")
+
+
+# ------------------------------------------------------------------
+# CORS CONFIGURATION (REQUIRED FOR UI POLLING)
+# ------------------------------------------------------------------
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class RunRequest(BaseModel):
@@ -200,7 +217,6 @@ def engine_state():
             "engine_time": 0,
             "last_cycle_timestamp": None,
 
-            # UI TELEMETRY (derived)
             "regime_name": "unknown",
             "flatten_triggered": False,
             "block_new_entries": False
@@ -218,10 +234,6 @@ def engine_state():
             "domain_modifier": 1.0,
         }
 
-    # ------------------------------------------------------------------
-    # DERIVED TELEMETRY FROM REAL STATE
-    # ------------------------------------------------------------------
-
     regime_name = regime_snapshot.get("regime", "unknown")
 
     execution = regime_snapshot.get("execution", {})
@@ -237,7 +249,6 @@ def engine_state():
         "engine_time": last.get("engine_time", 0),
         "last_cycle_timestamp": regime_snapshot.get("timestamp"),
 
-        # UI TELEMETRY (derived from reality)
         "regime_name": regime_name,
         "flatten_triggered": flatten_triggered,
         "block_new_entries": block_new_entries
