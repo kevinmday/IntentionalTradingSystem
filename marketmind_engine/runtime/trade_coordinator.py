@@ -36,6 +36,25 @@ class TradeCoordinator:
         self._narrative_adapter = narrative_adapter
 
     # --------------------------------------------------
+    # RSS POLLING
+    # --------------------------------------------------
+
+    def _poll_narrative(self):
+        """
+        Poll RSS feeds and refresh projection events.
+        Safe no-op if adapter not present.
+        """
+
+        if not self._narrative_adapter:
+            return
+
+        try:
+            self._narrative_adapter.worker.poll_once()
+            self._narrative_adapter._update_projection()
+        except Exception as e:
+            print(f"[RSS] polling failure: {e}")
+
+    # --------------------------------------------------
     # PROJECTION ROUTING (ATTENTION ONLY)
     # --------------------------------------------------
 
@@ -98,6 +117,12 @@ class TradeCoordinator:
         execution_input: ExecutionInput,
         market_context_map: Optional[dict] = None,
     ) -> dict:
+
+        # --------------------------------------------------
+        # 0. RSS Polling (NEW)
+        # --------------------------------------------------
+
+        self._poll_narrative()
 
         # --------------------------------------------------
         # 1. Regime Authority

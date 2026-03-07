@@ -15,16 +15,20 @@ from marketmind_engine.api.models import (
 )
 
 from marketmind_engine.intelligence.propagation_engine import PropagationEngine
+from marketmind_engine.intelligence.symbol_validator import SymbolValidator
 
 
 # ------------------------------------------------------------------
-# Authoritative Engine Bootstrap
+# ENGINE BOOTSTRAP
 # ------------------------------------------------------------------
 
 engine_controller = build_engine()
 
 engine_loop_thread = None
 engine_loop_running = False
+
+rss_polling_active = False
+symbol_evaluation_active = False
 
 
 # ------------------------------------------------------------------
@@ -40,16 +44,18 @@ propagation_engine = PropagationEngine(
     rss_service=rss_service,
 )
 
+symbol_validator = SymbolValidator()
+
 
 # ------------------------------------------------------------------
-# FastAPI App
+# FASTAPI APP
 # ------------------------------------------------------------------
 
 app = FastAPI(title="MarketMind Engine API")
 
 
 # ------------------------------------------------------------------
-# CORS CONFIGURATION (REQUIRED FOR UI POLLING)
+# CORS (UI POLLING)
 # ------------------------------------------------------------------
 
 app.add_middleware(
@@ -75,12 +81,100 @@ class RunRequest(BaseModel):
 def engine_loop():
 
     global engine_loop_running
+    global rss_polling_active
+    global symbol_evaluation_active
 
     while engine_loop_running:
 
         try:
+
+            rss_polling_active = False
+            symbol_evaluation_active = False
+
             if engine_controller.is_running():
-                engine_controller.run_symbol_cycle("TEST")
+
+                symbols = set()
+
+                # --------------------------------------------------
+                # 1. RSS POLLING
+                # --------------------------------------------------
+
+                if rss_service:
+
+                    try:
+
+                        rss_service.worker.poll_once()
+
+                        # Critical step
+                        rss_service._update_projection()
+
+                        rss_polling_active = True
+
+                        events = rss_service.get_projection_events()
+
+                        print("RSS headlines:", len(rss_service.buffer._headlines))
+                        print("RSS events discovered:", len(events))
+
+                        for event in events:
+
+                            if hasattr(event, "symbol") and event.symbol:
+                                symbols.add(event.symbol)
+
+                            if hasattr(event, "symbols") and event.symbols:
+                                for s in event.symbols:
+                                    symbols.add(s)
+
+                    except Exception as e:
+                        print("RSS polling error:", e)
+
+                # --------------------------------------------------
+                # 2. SYMBOL VALIDATION
+                # --------------------------------------------------
+
+                validated_symbols = set()
+
+                for symbol in symbols:
+
+                    try:
+
+                        if symbol_validator.is_valid(symbol):
+                            validated_symbols.add(symbol)
+                        else:
+                            print("Filtered symbol:", symbol)
+
+                    except Exception:
+                        pass
+
+                print("Validated symbols:", validated_symbols)
+
+                # --------------------------------------------------
+                # 3. ENGINE EVALUATION
+                # --------------------------------------------------
+
+                if validated_symbols:
+
+                    for symbol in validated_symbols:
+
+                        try:
+
+                            symbol_evaluation_active = True
+                            engine_controller.run_symbol_cycle(symbol)
+
+                        except Exception as e:
+                            print("Symbol cycle error:", symbol, e)
+
+                    # --------------------------------------------------
+                    # 4. PROPAGATION UPDATE
+                    # --------------------------------------------------
+
+                    try:
+                        propagation_engine.update(validated_symbols)
+                    except Exception:
+                        pass
+
+                else:
+
+                    print("No validated RSS symbols this cycle")
 
         except Exception as e:
             print("Engine loop error:", e)
@@ -89,7 +183,7 @@ def engine_loop():
 
 
 # ------------------------------------------------------------------
-# ENGINE CONTROL ENDPOINTS
+# ENGINE CONTROL
 # ------------------------------------------------------------------
 
 @app.post("/api/engine/start", response_model=StartResponse)
@@ -125,6 +219,25 @@ def stop_engine():
     return {"status": "stopped"}
 
 
+# ------------------------------------------------------------------
+# MANUAL RUN
+# ------------------------------------------------------------------
+
+@app.post("/api/engine/run-cycle")
+def run_cycle():
+
+    try:
+        result = engine_controller.run_symbol_cycle("TEST")
+        return result
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ------------------------------------------------------------------
+# ENGINE STATUS
+# ------------------------------------------------------------------
+
 @app.get("/api/engine/status", response_model=EngineStatus)
 def engine_status():
 
@@ -150,6 +263,8 @@ def engine_status():
         "regime": regime_name,
         "engine_time": engine_time,
         "last_cycle_timestamp": timestamp,
+        "rss_polling": rss_polling_active,
+        "symbol_evaluation": symbol_evaluation_active
     }
 
 
@@ -204,6 +319,7 @@ def engine_state():
     last = engine_controller.get_last_result()
 
     if not last:
+
         return {
             "running": engine_controller.is_running(),
             "regime": {
@@ -216,23 +332,12 @@ def engine_state():
             },
             "engine_time": 0,
             "last_cycle_timestamp": None,
-
             "regime_name": "unknown",
             "flatten_triggered": False,
             "block_new_entries": False
         }
 
     regime_snapshot = last.get("regime")
-
-    if not isinstance(regime_snapshot, dict):
-        regime_snapshot = {
-            "timestamp": 0.0,
-            "regime": "unknown",
-            "execution": {},
-            "composite_score": 0.0,
-            "recovery_modifier": 1.0,
-            "domain_modifier": 1.0,
-        }
 
     regime_name = regime_snapshot.get("regime", "unknown")
 
@@ -248,7 +353,6 @@ def engine_state():
         "regime": regime_snapshot,
         "engine_time": last.get("engine_time", 0),
         "last_cycle_timestamp": regime_snapshot.get("timestamp"),
-
         "regime_name": regime_name,
         "flatten_triggered": flatten_triggered,
         "block_new_entries": block_new_entries
@@ -270,26 +374,49 @@ def propagation_snapshot():
 
 
 # ------------------------------------------------------------------
-# NARRATIVE RADAR
+# RSS DEBUG ENDPOINT
 # ------------------------------------------------------------------
 
-@app.get("/api/narrative_radar")
-def narrative_radar():
+@app.get("/api/rss_events")
+def rss_events():
 
-    return {
-        "updated": "now",
-        "domains": [
-            {"domain": "ai-bio", "score": 72},
-            {"domain": "defense", "score": 54},
-            {"domain": "energy", "score": 33},
-            {"domain": "macro", "score": 21},
-        ],
-        "symbols": [
-            {"symbol": "NVDA", "mentions": 12, "momentum": 1.42},
-            {"symbol": "PLTR", "mentions": 7, "momentum": 1.18},
-            {"symbol": "SMCI", "mentions": 5, "momentum": 1.09},
-        ],
-    }
+    if not rss_service:
+        return {"error": "rss_service_missing"}
+
+    try:
+
+        events = rss_service.get_projection_events()
+
+        raw_symbols = set()
+
+        for event in events:
+
+            if hasattr(event, "symbol") and event.symbol:
+                raw_symbols.add(event.symbol)
+
+            if hasattr(event, "symbols") and event.symbols:
+                for s in event.symbols:
+                    raw_symbols.add(s)
+
+        validated = []
+
+        for s in raw_symbols:
+
+            try:
+                if symbol_validator.is_valid(s):
+                    validated.append(s)
+            except Exception:
+                pass
+
+        return {
+            "headline_count": len(rss_service.buffer._headlines),
+            "event_count": len(events),
+            "raw_symbols": sorted(list(raw_symbols)),
+            "validated_symbols": sorted(validated)
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
 
 
 # ------------------------------------------------------------------

@@ -46,6 +46,17 @@ class NarrativeAdapter:
     # Projection (STRUCTURED CONTRACT)
     # -------------------------------------------------
 
+    def _extract_title(self, item):
+        """
+        Support both legacy dict items and NarrativeItem objects.
+        """
+
+        if isinstance(item, dict):
+            return item.get("title", "")
+
+        # NarrativeItem object
+        return getattr(item, "title", "")
+
     def _update_projection(self):
 
         headlines = self.buffer.snapshot()
@@ -54,7 +65,9 @@ class NarrativeAdapter:
         symbols = set()
 
         for item in headlines:
-            title = item.get("title", "")
+
+            title = self._extract_title(item)
+
             extracted = self.extractor.extract(title)
 
             for symbol in extracted:
@@ -62,6 +75,7 @@ class NarrativeAdapter:
 
         # Deterministic event creation
         for symbol in sorted(symbols):
+
             self._engine_time_counter += 1
 
             events.append(

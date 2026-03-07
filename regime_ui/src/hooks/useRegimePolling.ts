@@ -6,28 +6,43 @@ export function useRegimePolling() {
   useEffect(() => {
     const fetchSnapshot = async () => {
       try {
-        const res = await fetch("http://localhost:5001/regime");
 
+        // Use Vite proxy when available
+        const res = await fetch("/api/engine/status");
+
+        // If proxy not configured, fallback to direct backend
         if (!res.ok) {
-          console.error("Polling failed:", res.status);
+          const fallback = await fetch("http://localhost:8001/api/engine/status");
+
+          if (!fallback.ok) {
+            console.error("Polling failed:", fallback.status);
+            return;
+          }
+
+          const data = await fallback.json();
+          console.log("REGIME PAYLOAD:", data);
+          setSnapshot(data);
           return;
         }
 
         const data = await res.json();
 
-        // 🔎 Debug log (remove later)
+        // Debug log
         console.log("REGIME PAYLOAD:", data);
 
         setSnapshot(data);
+
       } catch (err) {
         console.error("Polling error:", err);
       }
     };
 
     fetchSnapshot();
+
     const interval = setInterval(fetchSnapshot, 1500);
 
     return () => clearInterval(interval);
+
   }, []);
 
   return { snapshot };

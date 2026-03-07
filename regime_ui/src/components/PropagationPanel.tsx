@@ -1,13 +1,31 @@
 import React, { useEffect, useState } from "react";
 
 type Snapshot = {
-  sector_avg: number;
-  prime_avg: number;
-  breadth: number;
-  etf_confirmation: boolean;
-  pullback_depth: number;
-  volume_delta: number;
-  timestamp: string;
+  timestamp: number;
+
+  structural: {
+    bias: number;
+    volatility: number;
+    dispersion: number;
+  };
+
+  narrative: {
+    bias: number;
+    concentration: number;
+    momentum: number;
+  };
+
+  capital: {
+    exposure: number;
+    unrealized_pct: number;
+    alignment: number;
+  };
+
+  composite: {
+    stress_score: number;
+    alignment_score: number;
+    regime_hint: string;
+  };
 };
 
 function valueColor(value: number) {
@@ -26,7 +44,6 @@ export default function PropagationPanel() {
       try {
         setError(null);
 
-        // 🔥 PROXY-BASED CALL (NO CORS)
         const res = await fetch("/api/propagation_snapshot");
 
         if (!res.ok) {
@@ -35,14 +52,18 @@ export default function PropagationPanel() {
         }
 
         const data = (await res.json()) as Snapshot;
+
         setSnapshot(data);
+
       } catch (err: any) {
         setError(err?.message ?? String(err));
       }
     };
 
     fetchData();
+
     const interval = setInterval(fetchData, 2000);
+
     return () => clearInterval(interval);
   }, []);
 
@@ -52,10 +73,10 @@ export default function PropagationPanel() {
     setLog((prev) => {
       const updated = [
         {
-          time: new Date(snapshot.timestamp).toLocaleTimeString(),
-          sector: snapshot.sector_avg,
-          breadth: snapshot.breadth,
-          etf: snapshot.etf_confirmation,
+          time: new Date(snapshot.timestamp * 1000).toLocaleTimeString(),
+          sector: snapshot.structural.bias,
+          breadth: snapshot.narrative.momentum,
+          regime: snapshot.composite.regime_hint,
         },
         ...prev,
       ];
@@ -70,7 +91,9 @@ export default function PropagationPanel() {
         <div className="text-neutral-400 tracking-widest">
           PROPAGATION OBSERVATORY
         </div>
+
         <div className="text-red-400">FETCH ERROR</div>
+
         <pre className="text-xs text-neutral-200 whitespace-pre-wrap break-words border border-neutral-800 p-3 rounded">
           {error}
         </pre>
@@ -88,72 +111,103 @@ export default function PropagationPanel() {
 
   return (
     <div className="p-6 text-sm font-mono space-y-6">
+
       <div className="text-neutral-400 tracking-widest">
         PROPAGATION OBSERVATORY
       </div>
 
       <div className="space-y-2">
+
         <div>
-          Sector Avg:
-          <span className={valueColor(snapshot.sector_avg)}>
-            {" "}{snapshot.sector_avg}%
+          Structural Bias:
+          <span className={valueColor(snapshot.structural.bias)}>
+            {" "}{snapshot.structural.bias.toFixed(3)}
           </span>
         </div>
 
         <div>
-          Prime Avg:
-          <span className={valueColor(snapshot.prime_avg)}>
-            {" "}{snapshot.prime_avg}%
-          </span>
-        </div>
-
-        <div>
-          Breadth:
+          Structural Volatility:
           <span className="text-neutral-200">
-            {" "}{snapshot.breadth}
+            {" "}{snapshot.structural.volatility.toFixed(3)}
           </span>
         </div>
 
         <div>
-          ETF Confirmation:
-          <span
-            className={
-              snapshot.etf_confirmation
-                ? "text-emerald-400"
-                : "text-red-400"
-            }
-          >
-            {" "}{snapshot.etf_confirmation ? "YES" : "NO"}
+          Structural Dispersion:
+          <span className="text-neutral-200">
+            {" "}{snapshot.structural.dispersion.toFixed(3)}
           </span>
         </div>
 
         <div>
-          Pullback Depth:
-          <span className={valueColor(snapshot.pullback_depth)}>
-            {" "}{snapshot.pullback_depth}%
+          Narrative Momentum:
+          <span className={valueColor(snapshot.narrative.momentum)}>
+            {" "}{snapshot.narrative.momentum.toFixed(3)}
           </span>
         </div>
 
         <div>
-          Volume Delta:
-          <span className={valueColor(snapshot.volume_delta)}>
-            {" "}{snapshot.volume_delta}%
+          Narrative Concentration:
+          <span className="text-neutral-200">
+            {" "}{snapshot.narrative.concentration.toFixed(3)}
           </span>
         </div>
+
+        <div>
+          Capital Exposure:
+          <span className={valueColor(snapshot.capital.exposure)}>
+            {" "}{snapshot.capital.exposure.toFixed(3)}
+          </span>
+        </div>
+
+        <div>
+          Unrealized %:
+          <span className={valueColor(snapshot.capital.unrealized_pct)}>
+            {" "}{snapshot.capital.unrealized_pct.toFixed(3)}
+          </span>
+        </div>
+
+        <div>
+          Stress Score:
+          <span className="text-neutral-200">
+            {" "}{snapshot.composite.stress_score.toFixed(3)}
+          </span>
+        </div>
+
+        <div>
+          Alignment Score:
+          <span className="text-neutral-200">
+            {" "}{snapshot.composite.alignment_score.toFixed(3)}
+          </span>
+        </div>
+
+        <div>
+          Regime Hint:
+          <span className="text-emerald-400">
+            {" "}{snapshot.composite.regime_hint.toUpperCase()}
+          </span>
+        </div>
+
       </div>
 
       <div className="border-t border-neutral-800 pt-4 space-y-2">
-        <div className="text-neutral-400">Ripple Log</div>
+
+        <div className="text-neutral-400">
+          Ripple Log
+        </div>
 
         <div className="space-y-1 text-xs max-h-64 overflow-y-auto">
+
           {log.map((entry, idx) => (
             <div key={idx}>
-              {entry.time} | sector {entry.sector}% | breadth {entry.breadth} | etf{" "}
-              {entry.etf ? "T" : "F"}
+              {entry.time} | bias {entry.sector.toFixed(3)} | momentum {entry.breadth.toFixed(3)} | regime {entry.regime}
             </div>
           ))}
+
         </div>
+
       </div>
+
     </div>
   );
 }
